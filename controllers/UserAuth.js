@@ -3,13 +3,12 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
 
-// generate 6-digit code
 const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
 
-// CREATE ACCOUNT
 exports.register = async (req, res) => {
   try {
-    const { name, email, password, confirmPassword } = req.body;
+    //Destructure fullName, phone, and country to match frontend
+    const { fullName, email, password, confirmPassword, phone, country } = req.body;
 
     if (password !== confirmPassword) {
       return res.status(400).json({ msg: "Passwords do not match" });
@@ -22,12 +21,13 @@ exports.register = async (req, res) => {
     const hashedPassword = await bcrypt.hash(password, salt);
 
     const otpCode = generateOTP();
-    // Code expires in 10 minutes
     const otpExpires = Date.now() + 10 * 60 * 1000; 
 
     user = new User({
-      name,
+      name: fullName, 
       email,
+      phone,
+      country,
       password: hashedPassword,
       verificationToken: otpCode,
       verificationExpires: otpExpires
@@ -38,19 +38,19 @@ exports.register = async (req, res) => {
     const message = `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
         <h2 style="color: #2563eb;">Verify Your Inanst Account</h2>
-        <p>Your 6-digit verification code is:</p>
+        <p>Hi ${fullName}, your 6-digit verification code is:</p>
         <h1 style="letter-spacing: 5px; color: #1e293b;">${otpCode}</h1>
         <p>This code will expire in 10 minutes.</p>
       </div>
     `;
 
     await sendEmail(user.email, "Inanst Verification Code", message);
-
     res.status(201).json({ msg: "OTP sent to email" });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
+
 
 // VERIFY OTP CODE
 exports.verifyCode = async (req, res) => {
