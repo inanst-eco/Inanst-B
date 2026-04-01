@@ -3,12 +3,16 @@ const nodemailer = require('nodemailer');
 const sendEmail = async (email, subject, text) => {
   try {
     const transporter = nodemailer.createTransport({
-      service: 'Gmail',
+      // Manually defining the host and port is more reliable on cloud hosts
+      host: 'smtp.gmail.com',
+      port: 465,
+      secure: true, 
       auth: {
         user: process.env.EMAIL_USER,
-        
         pass: process.env.EMAIL_PASS, 
       },
+      
+      family: 4 
     });
 
     // Send the email with the provided details
@@ -27,7 +31,7 @@ const sendEmail = async (email, subject, text) => {
       code: error.code,
       command: error.command
     });
-    // Throwing the error ensures the controller knows the OTP failed to send
+    
     throw error; 
   }
 };
