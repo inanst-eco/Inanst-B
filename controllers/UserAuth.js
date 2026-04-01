@@ -7,7 +7,6 @@ const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString()
 
 exports.register = async (req, res) => {
   try {
-    //Destructure fullName, phone, and country to match frontend
     const { fullName, email, password, confirmPassword, phone, country } = req.body;
 
     if (password !== confirmPassword) {
@@ -51,28 +50,50 @@ exports.register = async (req, res) => {
   }
 };
 
+exports.resendOtp = async (req, res) => {
+  try {
+    const { email } = req.body;
+    const user = await User.findOne({ email });
 
-// VERIFY OTP CODE
+    if (!user) return res.status(404).json({ msg: "User not found" });
+    if (user.isVerified) return res.status(400).json({ msg: "Email already verified" });
+
+    const newOtp = generateOTP();
+    user.verificationToken = newOtp;
+    user.verificationExpires = Date.now() + 10 * 60 * 1000;
+    await user.save();
+
+    const message = `
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
+        <h2 style="color: #2563eb;">New Verification Code</h2>
+        <p>Your new 6-digit verification code is:</p>
+        <h1 style="letter-spacing: 5px; color: #1e293b;">${newOtp}</h1>
+      </div>
+    `;
+
+    await sendEmail(user.email, "New Inanst Verification Code", message);
+    res.json({ msg: "New code sent to email" });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
+};
+
 exports.verifyCode = async (req, res) => {
   try {
     const { email, code } = req.body;
-
     const user = await User.findOne({ 
       email, 
       verificationToken: code,
       verificationExpires: { $gt: Date.now() } 
     });
 
-    if (!user) {
-      return res.status(400).json({ msg: "Invalid or expired code" });
-    }
+    if (!user) return res.status(400).json({ msg: "Invalid or expired code" });
 
     user.isVerified = true;
     user.verificationToken = undefined;
     user.verificationExpires = undefined;
     await user.save();
 
-    // Create token so user is logged in immediately after verification
     const token = jwt.sign(
       { id: user._id, role: user.role }, 
       process.env.JWT_SECRET, 
@@ -89,27 +110,18 @@ exports.verifyCode = async (req, res) => {
   }
 };
 
-// LOGIN
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
-
     if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
-    
-    if (!user.isVerified) {
-      return res.status(401).json({ msg: "Please verify your email first" });
-    }
+    if (!user.isVerified) return res.status(401).json({ msg: "Please verify your email first" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
     const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-
-    res.json({
-      token,
-      user: { id: user._id, name: user.name, role: user.role }
-    });
+    res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
