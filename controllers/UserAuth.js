@@ -43,10 +43,23 @@ exports.register = async (req, res) => {
       </div>
     `;
 
-    await sendEmail(user.email, "Inanst Verification Code", message);
-    res.status(201).json({ msg: "OTP sent to email" });
+    
+    try {
+      await sendEmail(user.email, "Inanst Verification Code", message);
+      return res.status(201).json({ msg: "OTP sent to email" });
+    } catch (emailErr) {
+      console.error("User created, but email failed:", emailErr.message);
+      
+      
+      return res.status(201).json({ 
+        msg: "Account created! We had trouble sending the email, please click Resend OTP.",
+        emailError: true 
+      });
+    }
+
   } catch (err) {
-    res.status(500).json({ error: err.message });
+    console.error("Registration Error:", err);
+    res.status(500).json({ error: "Server Error during registration" });
   }
 };
 
@@ -71,13 +84,18 @@ exports.resendOtp = async (req, res) => {
       </div>
     `;
 
-    await sendEmail(user.email, "New Inanst Verification Code", message);
-    res.json({ msg: "New code sent to email" });
+    try {
+      await sendEmail(user.email, "New Inanst Verification Code", message);
+      res.json({ msg: "New code sent to email" });
+    } catch (emailErr) {
+      res.status(500).json({ msg: "Failed to send email. Please try again later." });
+    }
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 };
 
+// verifyCode and login stay the same ...
 exports.verifyCode = async (req, res) => {
   try {
     const { email, code } = req.body;
