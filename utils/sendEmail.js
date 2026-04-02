@@ -1,4 +1,5 @@
 const nodemailer = require('nodemailer');
+const dns = require('dns'); 
 
 const sendEmail = async (email, subject, text) => {
   try {
@@ -11,11 +12,12 @@ const sendEmail = async (email, subject, text) => {
         pass: process.env.EMAIL_PASS, 
       },
       
-      family: 4, 
-      
-      connectionTimeout: 10000, 
-      greetingTimeout: 10000,
-      socketTimeout: 10000,
+      dnsLookup: (hostname, options, callback) => {
+        dns.lookup(hostname, { family: 4 }, callback);
+      },
+      connectionTimeout: 15000, 
+      greetingTimeout: 15000,
+      socketTimeout: 15000,
     });
 
     // Send the email with the provided details
