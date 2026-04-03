@@ -2,33 +2,36 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const passport = require('passport');
+require('dotenv').config();
+
+// Import Routes
 const profileRoutes = require('./routes/profile');
 const newsletterRoutes = require('./routes/newsletter');
-app.use('/api/contact', require('./routes/contact'));
-require('dotenv').config();
+const contactRoutes = require('./routes/contact');
+const authRoutes = require('./routes/UserAuth');
 
 const app = express();
 
-// Middleware
+// 1. Middleware (Must come before routes)
 app.use(express.json());
 app.use(cors());
 app.use(passport.initialize());
 
-// Passport Config for social authentication
+// 2. Passport Config
 require('./config/passport')(passport); 
 
-// Routes for the Api
-app.use('/api/auth', require('./routes/UserAuth'));
+// 3. Routes for the Api
+app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/newsletter', newsletterRoutes);
-app.use('/api/contact', require('./routes/contact'));
+app.use('/api/contact', contactRoutes);
 
-// Database Connection
+// 4. Database Connection
 mongoose.connect(process.env.MONGO_URI)
   .then(() => console.log('Hi, Wasem! you are connected to MongoDB Atlas'))
   .catch((err) => console.error('Hi, Wasem! MongoDB Connection Error:', err));
 
-// Start Server
+// 5. Start Server
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`Hi, Wasem! Server running on port ${PORT}`);
