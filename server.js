@@ -2,6 +2,9 @@ const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
 const passport = require('passport');
+const profileRoutes = require('./routes/profile');
+const newsletterRoutes = require('./routes/newsletter');
+app.use('/api/contact', require('./routes/contact'));
 require('dotenv').config();
 
 const app = express();
@@ -16,6 +19,9 @@ require('./config/passport')(passport);
 
 // Routes for the Api
 app.use('/api/auth', require('./routes/UserAuth'));
+app.use('/api/profile', profileRoutes);
+app.use('/api/newsletter', newsletterRoutes);
+app.use('/api/contact', require('./routes/contact'));
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
