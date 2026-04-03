@@ -1,10 +1,11 @@
 const User = require('../models/User');
 
-
 const getUserProfile = async (req, res) => {
   try {
-    // req.user.id is populated by 'protect' middleware
-    const user = await User.findById(req.user.id).select('fullName email bio role');
+    
+    const userId = req.user.user?.id || req.user.id;
+
+    const user = await User.findById(userId).select('fullName email bio');
 
     if (!user) {
       return res.status(404).json({ msg: 'User not found' });
