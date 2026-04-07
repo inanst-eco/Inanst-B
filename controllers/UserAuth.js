@@ -13,26 +13,41 @@ exports.register = async (req, res) => {
       return res.status(400).json({ msg: "Passwords do not match" });
     }
 
+    // Check if user exists
     let user = await User.findOne({ email });
-    if (user) return res.status(400).json({ msg: "User already exists" });
+
+    // If user exists and is already verified, block registration
+    if (user && user.isVerified) {
+      return res.status(400).json({ msg: "User already exists and is verified. Please login." });
+    }
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
-
     const otpCode = generateOTP();
     const otpExpires = Date.now() + 10 * 60 * 1000; 
 
-    user = new User({
-      name: fullName, 
-      email,
-      phone,
-      country,
-      password: hashedPassword,
-      verificationToken: otpCode,
-      verificationExpires: otpExpires
-    });
-
-    await user.save();
+    if (user && !user.isVerified) {
+      // Handle unverified user: Update their existing record with new details and a fresh OTP
+      user.name = fullName;
+      user.password = hashedPassword;
+      user.phone = phone;
+      user.country = country;
+      user.verificationToken = otpCode;
+      user.verificationExpires = otpExpires;
+      await user.save();
+    } else {
+      // Create new user record
+      user = new User({
+        name: fullName, 
+        email,
+        phone,
+        country,
+        password: hashedPassword,
+        verificationToken: otpCode,
+        verificationExpires: otpExpires
+      });
+      await user.save();
+    }
 
     const message = `
       <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
@@ -43,17 +58,16 @@ exports.register = async (req, res) => {
       </div>
     `;
 
-    
     try {
+      // Send the email
       await sendEmail(user.email, "Inanst Verification Code", message);
-      return res.status(201).json({ msg: "OTP sent to email" });
+      return res.status(201).json({ msg: "OTP sent to email", email: user.email });
     } catch (emailErr) {
-      console.error("User created, but email failed:", emailErr.message);
-      
-      
+      console.error("User handled, but email failed:", emailErr.message);
       return res.status(201).json({ 
-        msg: "Account created! We had trouble sending the email, please click Resend OTP.",
-        emailError: true 
+        msg: "Account ready! Email delivery failed. Please click Resend OTP.",
+        emailError: true,
+        email: user.email
       });
     }
 
@@ -95,7 +109,6 @@ exports.resendOtp = async (req, res) => {
   }
 };
 
-// verifyCode and login stay the same ...
 exports.verifyCode = async (req, res) => {
   try {
     const { email, code } = req.body;
@@ -132,14 +145,23 @@ exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
     const user = await User.findOne({ email });
+
     if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
     if (!user.isVerified) return res.status(401).json({ msg: "Please verify your email first" });
 
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
-    const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1d' });
-    res.json({ token, user: { id: user._id, name: user.name, role: user.role } });
+    const token = jwt.sign(
+      { id: user._id, role: user.role }, 
+      process.env.JWT_SECRET, 
+      { expiresIn: '1d' }
+    );
+    
+    res.json({ 
+      token, 
+      user: { id: user._id, name: user.name, role: user.role } 
+    });
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
