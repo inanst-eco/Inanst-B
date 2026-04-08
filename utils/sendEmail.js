@@ -3,18 +3,19 @@ const nodemailer = require('nodemailer');
 const sendEmail = async (email, subject, text) => {
   try {
     const transporter = nodemailer.createTransport({
-      host: 'smtp.gmail.com', // Using hostname is much more stable than IP
+      host: 'smtp.gmail.com', 
       port: 465,
       secure: true, 
       auth: {
         user: process.env.EMAIL_USER,
         pass: process.env.EMAIL_PASS, 
       },
-      // Simplified TLS settings for better compatibility with Render's network
+      // Force IPv4 to resolve the ENETUNREACH (IPv6) errors on Render
+      connectionOptions: { family: 4 },
       tls: {
         rejectUnauthorized: false
       },
-      connectionTimeout: 30000, // Increased to 30s to prevent Render timeouts
+      connectionTimeout: 30000, 
       greetingTimeout: 30000,
       socketTimeout: 30000,
     });
