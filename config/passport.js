@@ -1,4 +1,4 @@
-const GoogleStrategy = require('passport-google-oauth20').Strategy;
+{/*const GoogleStrategy = require('passport-google-oauth20').Strategy;
 const FacebookStrategy = require('passport-facebook').Strategy;
 const User = require('../models/User');
 
@@ -23,4 +23,4 @@ module.exports = function(passport) {
       }
     } catch (err) { console.error(err); }
   }));
-};
+}; */}

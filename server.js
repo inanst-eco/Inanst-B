@@ -1,7 +1,7 @@
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
-const passport = require('passport');
+// const passport = require('passport'); 
 require('dotenv').config();
 
 // Import Routes
@@ -12,13 +12,17 @@ const authRoutes = require('./routes/UserAuth');
 
 const app = express();
 
-// 1. Middleware (Must come before routes)
+//  Middleware
 app.use(express.json());
-app.use(cors());
-app.use(passport.initialize());
 
-// 2. Passport Config
-require('./config/passport')(passport); 
+// Update CORS to allow your frontend URL
+app.use(cors({
+  origin: process.env.CLIENT_URL || "https://www.inanst.com",
+  credentials: true
+}));
+
+// app.use(passport.initialize()); 
+// require('./config/passport')(passport); 
 
 // 3. Routes for the Api
 app.use('/api/auth', authRoutes);
