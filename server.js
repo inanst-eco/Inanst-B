@@ -14,7 +14,7 @@ const app = express();
 // Middleware
 app.use(express.json());
 
-// Enhanced CORS to handle both www and non-www
+// CORS Configuration
 const allowedOrigins = [
   "https://www.inanst.com",
   "https://inanst.com",
@@ -23,6 +23,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
+    // Allow requests with no origin 
     if (!origin || allowedOrigins.indexOf(origin) !== -1) {
       callback(null, true);
     } else {
@@ -32,11 +33,16 @@ app.use(cors({
   credentials: true
 }));
 
-// Routes for the Api
+// Routes
 app.use('/api/auth', authRoutes);
 app.use('/api/profile', profileRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
+
+// Root Health Check
+app.get('/', (req, res) => {
+  res.send('Inanst API is running smoothly.');
+});
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
@@ -44,7 +50,7 @@ mongoose.connect(process.env.MONGO_URI)
   .catch((err) => console.error('Hi, Wasem! MongoDB Connection Error:', err));
 
 // Start Server
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 10000; 
 app.listen(PORT, () => {
   console.log(`Hi, Wasem! Server running on port ${PORT}`);
 });

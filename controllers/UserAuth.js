@@ -9,6 +9,10 @@ exports.register = async (req, res) => {
   try {
     const { fullName, email, password, confirmPassword, phone, country } = req.body;
 
+    if (!fullName || !email || !password || !phone || !country) {
+        return res.status(400).json({ msg: "All fields are required" });
+    }
+
     if (password !== confirmPassword) {
       return res.status(400).json({ msg: "Passwords do not match" });
     }
@@ -27,7 +31,7 @@ exports.register = async (req, res) => {
     const otpExpires = Date.now() + 10 * 60 * 1000; 
 
     if (user && !user.isVerified) {
-      // Update existing record (standardizing 'name' to match NextAuth schema)
+      // Update existing record
       user.name = fullName; 
       user.password = hashedPassword;
       user.phone = phone;
@@ -36,7 +40,7 @@ exports.register = async (req, res) => {
       user.verificationExpires = otpExpires;
       await user.save();
     } else {
-      // Create new user record (aligned with NextAuth Google creation)
+      // Create new user record
       user = new User({
         name: fullName, 
         email,
@@ -45,30 +49,29 @@ exports.register = async (req, res) => {
         password: hashedPassword,
         verificationToken: otpCode,
         verificationExpires: otpExpires,
-        role: "regular", // Matching the role in your NextAuth route.ts
+        role: "regular",
         isVerified: false
       });
       await user.save();
     }
 
     const message = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
         <h2 style="color: #2563eb;">Verify Your Inanst Account</h2>
         <p>Hi ${fullName}, your 6-digit verification code is:</p>
-        <h1 style="letter-spacing: 5px; color: #1e293b;">${otpCode}</h1>
+        <h1 style="letter-spacing: 5px; color: #1e293b; background: #f1f5f9; padding: 10px; display: inline-block;">${otpCode}</h1>
         <p>This code will expire in 10 minutes.</p>
       </div>
     `;
 
     try {
-      // Trigger the forced IPv4 sendEmail utility
       await sendEmail(user.email, "Inanst Verification Code", message);
       return res.status(201).json({ msg: "OTP sent to email", email: user.email });
     } catch (emailErr) {
-      // Log the error but return 201 so the frontend moves to the OTP entry screen
       console.error("User created, but email failed:", emailErr.message);
+      // We return 201 so the frontend still shows the OTP modal
       return res.status(201).json({ 
-        msg: "Account ready! Email delivery failed. Please click Resend OTP.",
+        msg: "Account ready! Code delivery delayed. Please click Resend OTP.",
         emailError: true,
         email: user.email
       });
@@ -76,13 +79,15 @@ exports.register = async (req, res) => {
 
   } catch (err) {
     console.error("Registration Error:", err);
-    return res.status(500).json({ error: "Server Error during registration" });
+    return res.status(500).json({ msg: "Server Error during registration" });
   }
 };
 
 exports.resendOtp = async (req, res) => {
   try {
     const { email } = req.body;
+    if (!email) return res.status(400).json({ msg: "Email is required" });
+
     const user = await User.findOne({ email });
 
     if (!user) return res.status(404).json({ msg: "User not found" });
@@ -94,10 +99,10 @@ exports.resendOtp = async (req, res) => {
     await user.save();
 
     const message = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee;">
+      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
         <h2 style="color: #2563eb;">New Verification Code</h2>
         <p>Your new 6-digit verification code is:</p>
-        <h1 style="letter-spacing: 5px; color: #1e293b;">${newOtp}</h1>
+        <h1 style="letter-spacing: 5px; color: #1e293b; background: #f1f5f9; padding: 10px; display: inline-block;">${newOtp}</h1>
       </div>
     `;
 
@@ -105,16 +110,20 @@ exports.resendOtp = async (req, res) => {
       await sendEmail(user.email, "New Inanst Verification Code", message);
       return res.json({ msg: "New code sent to email" });
     } catch (emailErr) {
-      return res.status(500).json({ msg: "Failed to send email. Please try again later." });
+      console.error("Resend Email Error:", emailErr.message);
+      return res.status(500).json({ msg: "Email service timeout. Please try again in 1 minute." });
     }
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    console.error("Resend OTP Server Error:", err.message);
+    return res.status(500).json({ msg: "Server error during OTP resend" });
   }
 };
 
 exports.verifyCode = async (req, res) => {
   try {
     const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ msg: "Email and code are required" });
+
     const user = await User.findOne({ 
       email, 
       verificationToken: code,
@@ -140,7 +149,7 @@ exports.verifyCode = async (req, res) => {
       user: { id: user._id, name: user.name, role: user.role }
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ msg: "Server error during verification" });
   }
 };
 
@@ -166,6 +175,6 @@ exports.login = async (req, res) => {
       user: { id: user._id, name: user.name, role: user.role } 
     });
   } catch (err) {
-    return res.status(500).json({ error: err.message });
+    return res.status(500).json({ msg: "Server error during login" });
   }
 };
