@@ -9,19 +9,28 @@ const sendEmail = async (to, subject, html) => {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
-        // THIS FORCES IPV4 TO PREVENT ENETUNREACH ERRORS
+        
+        connectionTimeout: 10000, 
+        greetingTimeout: 10000,
+        socketTimeout: 15000,
         tls: {
             rejectUnauthorized: false,
             minVersion: "TLSv1.2"
         }
     });
 
-    await transporter.sendMail({
-        from: `"Inanst Support" <${process.env.EMAIL_USER}>`,
-        to,
-        subject,
-        html,
-    });
+    try {
+        await transporter.sendMail({
+            from: `"Inanst Support" <${process.env.EMAIL_USER}>`,
+            to,
+            subject,
+            html,
+        });
+        console.log(`Email sent successfully to ${to}`);
+    } catch (error) {
+        console.error("Nodemailer Error:", error.message);
+        throw error; 
+    }
 };
 
 module.exports = sendEmail;

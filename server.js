@@ -11,10 +11,13 @@ const authRoutes = require('./routes/UserAuth');
 
 const app = express();
 
+
+app.set('trust proxy', 1);
+
 // Middleware
 app.use(express.json());
 
-// CORS Configuration
+// REFINED CORS CONFIGURATION
 const allowedOrigins = [
   "https://www.inanst.com",
   "https://inanst.com",
@@ -24,13 +27,15 @@ const allowedOrigins = [
 app.use(cors({
   origin: function (origin, callback) {
     // Allow requests with no origin 
-    if (!origin || allowedOrigins.indexOf(origin) !== -1) {
+    if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
       callback(new Error('Not allowed by CORS'));
     }
   },
-  credentials: true
+  credentials: true, 
+  methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"]
 }));
 
 // Routes
@@ -42,6 +47,12 @@ app.use('/api/contact', contactRoutes);
 // Root Health Check
 app.get('/', (req, res) => {
   res.send('Inanst API is running smoothly.');
+});
+
+
+app.use((err, req, res, next) => {
+  console.error('Hi, Wasem! Global Error:', err.message);
+  res.status(500).json({ error: 'Internal Server Error', message: err.message });
 });
 
 // Database Connection
