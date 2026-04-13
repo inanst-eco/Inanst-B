@@ -11,6 +11,7 @@ const sendEmail = async (to, subject, html) => {
         pass: process.env.EMAIL_PASS,
     },
     family: 4, 
+    connectionTimeout: 10000, 
    });
     
     try {
