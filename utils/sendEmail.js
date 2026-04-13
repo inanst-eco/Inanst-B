@@ -3,22 +3,17 @@ const nodemailer = require('nodemailer');
 const sendEmail = async (to, subject, html) => {
     const transporter = nodemailer.createTransport({
         host: 'smtp.gmail.com',
-        port: 587, 
+        port: 587,
         secure: false, 
         auth: {
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
-        // IMPORTANT: Forces IPv4 to fix Render's ENETUNREACH error
+        
         family: 4, 
         
-        connectionTimeout: 15000, 
-        greetingTimeout: 15000,
-        socketTimeout: 20000,
-        tls: {
-            rejectUnauthorized: false,
-            minVersion: "TLSv1.2"
-        }
+        connectionTimeout: 10000,
+        greetingTimeout: 10000,
     });
 
     try {
@@ -28,10 +23,12 @@ const sendEmail = async (to, subject, html) => {
             subject,
             html,
         });
-        console.log(`Email sent successfully to ${to}`);
+        console.log(`Email sent to ${to}`);
     } catch (error) {
-        console.error("Nodemailer Error on Render:", error.message);
-        throw error; 
+        // Detailed error logging to catch specific Render network issues
+        console.error("SMTP Connection Error:");
+        console.error(`Code: ${error.code} | Address: ${error.address}`);
+        throw error;
     }
 };
 
