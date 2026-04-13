@@ -7,12 +7,12 @@ const sendEmail = async (to, subject, html) => {
         port: 587,
         secure: false, 
         auth: {
-            
             user: process.env.EMAIL_USER,
             pass: process.env.EMAIL_PASS,
         },
+       
         family: 4, 
-        connectionTimeout: 10000, 
+        connectionTimeout: 10000,
     });
 
     try {
@@ -22,9 +22,9 @@ const sendEmail = async (to, subject, html) => {
             subject,
             html,
         });
-        console.log(`Success: Verification email sent to ${to}`);
+        console.log(` Success: Email delivered to ${to}`);
     } catch (error) {
-        console.error("Nodemailer Error:", error.message);
+        console.error(" SMTP Error:", error.message);
         throw error;
     }
 };

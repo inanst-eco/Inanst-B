@@ -51,7 +51,6 @@ exports.register = async (req, res) => {
       await user.save();
     }
 
-    // Generate token so they are logged in immediately after registration
     const token = jwt.sign(
       { id: user._id, role: user.role }, 
       process.env.JWT_SECRET, 
@@ -63,11 +62,11 @@ exports.register = async (req, res) => {
         <h2 style="color: #2563eb;">Welcome to Inanst!</h2>
         <p>Hi ${fullName}, please verify your account using this code:</p>
         <h1 style="letter-spacing: 5px; color: #1e293b; background: #f1f5f9; padding: 10px; display: inline-block;">${otpCode}</h1>
-        <p>You can also verify this later from your dashboard.</p>
+        <p>This code will expire in 24 hours.</p>
       </div>
     `;
 
-    //  Send email without making the user wait
+    // sendEmail handles the family: 4 logic we discussed to work on Render
     sendEmail(user.email, "Verify your Inanst Account", message).catch(err => 
       console.error("Background Email Error:", err.message)
     );
@@ -99,7 +98,6 @@ exports.login = async (req, res) => {
       process.env.JWT_SECRET, 
       { expiresIn: '1d' }
     );
-    
     
     return res.json({ 
       token, 
@@ -133,6 +131,7 @@ exports.verifyCode = async (req, res) => {
     user.verificationExpires = undefined;
     await user.save();
 
+    // Re-sign token with updated verification status
     const token = jwt.sign(
       { id: user._id, role: user.role }, 
       process.env.JWT_SECRET, 
@@ -161,10 +160,16 @@ exports.resendOtp = async (req, res) => {
 
     const newOtp = generateOTP();
     user.verificationToken = newOtp;
-    user.verificationExpires = Date.now() + 10 * 60 * 1000;
+    user.verificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes for resend
     await user.save();
 
-    const message = `<p>Your new verification code is: <b>${newOtp}</b></p>`;
+    const message = `
+      <div style="font-family: sans-serif; padding: 20px;">
+        <h2>Your new verification code</h2>
+        <p style="font-size: 18px;">Code: <b>${newOtp}</b></p>
+        <p>This code expires in 10 minutes.</p>
+      </div>
+    `;
 
     sendEmail(user.email, "New Inanst Verification Code", message).catch(e => console.error(e));
     
@@ -193,7 +198,7 @@ exports.resendVerification = async (req, res) => {
       </div>
     `;
     
-    sendEmail(user.email, "Inanst Verification Link", message).catch(e => console.error(e));
+    sendEmail(user.email, "Inanst Verification Code", message).catch(e => console.error(e));
 
     return res.json({ msg: "Verification code resent!" });
   } catch (err) {
