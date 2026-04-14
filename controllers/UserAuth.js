@@ -3,7 +3,33 @@ const bcrypt = require('bcryptjs');
 const jwt = require('jsonwebtoken');
 const sendEmail = require('../utils/sendEmail');
 
-const generateOTP = () => Math.floor(100000 + Math.random() * 900000).toString();
+const generateOTP = () =>
+  Math.floor(100000 + Math.random() * 900000).toString();
+
+const otpRateLimit = new Map();
+
+const canSendOTP = (email) => {
+  const now = Date.now();
+  const record = otpRateLimit.get(email);
+
+  if (!record) {
+    otpRateLimit.set(email, { count: 1, time: now });
+    return true;
+  }
+
+  // reset after 60 seconds
+  if (now - record.time > 60 * 1000) {
+    otpRateLimit.set(email, { count: 1, time: now });
+    return true;
+  }
+
+  if (record.count >= 3) return false;
+
+  record.count++;
+  otpRateLimit.set(email, record);
+  return true;
+};
+
 
 exports.register = async (req, res) => {
   try {
@@ -23,185 +49,191 @@ exports.register = async (req, res) => {
       return res.status(400).json({ msg: "User already exists. Please login." });
     }
 
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(password, salt);
-    const otpCode = generateOTP();
-    const otpExpires = Date.now() + 24 * 60 * 60 * 1000; 
+    const hashedPassword = await bcrypt.hash(password, 10);
+
+    const otp = generateOTP();
+    const expires = Date.now() + 10 * 60 * 1000; 
 
     if (user && !user.isVerified) {
-      user.name = fullName; 
+      user.name = fullName;
       user.password = hashedPassword;
       user.phone = phone;
       user.country = country;
-      user.verificationToken = otpCode;
-      user.verificationExpires = otpExpires;
+      user.verificationToken = otp;
+      user.verificationExpires = expires;
       await user.save();
     } else {
-      user = new User({
-        name: fullName, 
+      user = await User.create({
+        name: fullName,
         email,
         phone,
         country,
         password: hashedPassword,
-        verificationToken: otpCode,
-        verificationExpires: otpExpires,
+        verificationToken: otp,
+        verificationExpires: expires,
         role: "regular",
         isVerified: false
       });
-      await user.save();
     }
 
     const token = jwt.sign(
-      { id: user._id, role: user.role }, 
-      process.env.JWT_SECRET, 
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
-    const message = `
-      <div style="font-family: Arial, sans-serif; padding: 20px; border: 1px solid #eee; border-radius: 10px;">
-        <h2 style="color: #2563eb;">Welcome to Inanst!</h2>
-        <p>Hi ${fullName}, please verify your account using this code:</p>
-        <h1 style="letter-spacing: 5px; color: #1e293b; background: #f1f5f9; padding: 10px; display: inline-block;">${otpCode}</h1>
-        <p>This code will expire in 24 hours.</p>
-      </div>
-    `;
-
-    // sendEmail handles the family: 4 logic we discussed to work on Render
-    sendEmail(user.email, "Verify your Inanst Account", message).catch(err => 
-      console.error("Background Email Error:", err.message)
+    await sendEmail(
+      user.email,
+      "Verify your Inanst Account",
+      `
+        <div style="font-family:sans-serif;text-align:center">
+          <h2>Welcome to Inanst 🚀</h2>
+          <p>Your verification code is:</p>
+          <h1 style="letter-spacing:8px;font-size:32px">${otp}</h1>
+          <p>This code expires in 10 minutes.</p>
+        </div>
+      `
     );
 
-    return res.status(201).json({ 
-      msg: "Registration successful", 
+    return res.status(201).json({
+      msg: "Registration successful",
       token,
-      user: { id: user._id, name: user.name, role: user.role, isVerified: false } 
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        isVerified: false
+      }
     });
 
   } catch (err) {
-    console.error("Registration Error:", err);
-    return res.status(500).json({ msg: "Server Error during registration" });
+    console.error(err);
+    return res.status(500).json({ msg: "Server error during registration" });
   }
 };
+
 
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
+
     const user = await User.findOne({ email });
 
     if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
+
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
     const token = jwt.sign(
-      { id: user._id, role: user.role }, 
-      process.env.JWT_SECRET, 
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
-    
-    return res.json({ 
-      token, 
-      user: { 
-        id: user._id, 
-        name: user.name, 
-        role: user.role, 
-        isVerified: user.isVerified 
-      } 
+
+    return res.json({
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        isVerified: user.isVerified
+      }
     });
+
   } catch (err) {
     return res.status(500).json({ msg: "Server error during login" });
   }
 };
 
+
 exports.verifyCode = async (req, res) => {
   try {
     const { email, code } = req.body;
-    if (!email || !code) return res.status(400).json({ msg: "Email and code are required" });
 
-    const user = await User.findOne({ 
-      email, 
+    if (!email || !code) {
+      return res.status(400).json({ msg: "Email and code required" });
+    }
+
+    const user = await User.findOne({
+      email,
       verificationToken: code,
-      verificationExpires: { $gt: Date.now() } 
+      verificationExpires: { $gt: Date.now() }
     });
 
-    if (!user) return res.status(400).json({ msg: "Invalid or expired code" });
+    if (!user) {
+      return res.status(400).json({ msg: "Invalid or expired code" });
+    }
 
     user.isVerified = true;
-    user.verificationToken = undefined;
-    user.verificationExpires = undefined;
+    user.verificationToken = null;
+    user.verificationExpires = null;
+
     await user.save();
 
-    // Re-sign token with updated verification status
     const token = jwt.sign(
-      { id: user._id, role: user.role }, 
-      process.env.JWT_SECRET, 
+      { id: user._id, role: user.role },
+      process.env.JWT_SECRET,
       { expiresIn: '1d' }
     );
 
     return res.json({
       msg: "Email verified successfully",
       token,
-      user: { id: user._id, name: user.name, role: user.role, isVerified: true }
+      user: {
+        id: user._id,
+        name: user.name,
+        role: user.role,
+        isVerified: true
+      }
     });
+
   } catch (err) {
     return res.status(500).json({ msg: "Server error during verification" });
   }
 };
 
-exports.resendOtp = async (req, res) => {
-  try {
-    const { email } = req.body;
-    if (!email) return res.status(400).json({ msg: "Email is required" });
-
-    const user = await User.findOne({ email });
-
-    if (!user) return res.status(404).json({ msg: "User not found" });
-    if (user.isVerified) return res.status(400).json({ msg: "Email already verified" });
-
-    const newOtp = generateOTP();
-    user.verificationToken = newOtp;
-    user.verificationExpires = Date.now() + 10 * 60 * 1000; // 10 minutes for resend
-    await user.save();
-
-    const message = `
-      <div style="font-family: sans-serif; padding: 20px;">
-        <h2>Your new verification code</h2>
-        <p style="font-size: 18px;">Code: <b>${newOtp}</b></p>
-        <p>This code expires in 10 minutes.</p>
-      </div>
-    `;
-
-    sendEmail(user.email, "New Inanst Verification Code", message).catch(e => console.error(e));
-    
-    return res.json({ msg: "New code sent to email" });
-  } catch (err) {
-    return res.status(500).json({ msg: "Server error during OTP resend" });
-  }
-};
 
 exports.resendVerification = async (req, res) => {
   try {
     const { email } = req.body;
+
+    if (!email) return res.status(400).json({ msg: "Email required" });
+
+    if (!canSendOTP(email)) {
+      return res.status(429).json({ msg: "Too many requests. Try again later." });
+    }
+
     const user = await User.findOne({ email });
 
     if (!user) return res.status(404).json({ msg: "User not found" });
-    
-    const newOtp = generateOTP();
-    user.verificationToken = newOtp;
-    user.verificationExpires = Date.now() + 24 * 60 * 60 * 1000;
+
+    if (user.isVerified) {
+      return res.status(400).json({ msg: "Already verified" });
+    }
+
+    const otp = generateOTP();
+
+    user.verificationToken = otp;
+    user.verificationExpires = Date.now() + 10 * 60 * 1000;
+
     await user.save();
 
-    const message = `
-      <div style="font-family: sans-serif; padding: 20px;">
-        <h2>Verify your account</h2>
-        <p>Your verification code is: <b>${newOtp}</b></p>
-      </div>
-    `;
-    
-    sendEmail(user.email, "Inanst Verification Code", message).catch(e => console.error(e));
+    await sendEmail(
+      user.email,
+      "New Verification Code",
+      `
+        <div style="font-family:sans-serif;text-align:center">
+          <h2>Your new OTP</h2>
+          <h1 style="letter-spacing:8px">${otp}</h1>
+          <p>Expires in 10 minutes</p>
+        </div>
+      `
+    );
 
-    return res.json({ msg: "Verification code resent!" });
+    return res.json({ msg: "New code sent successfully" });
+
   } catch (err) {
-    res.status(500).json({ msg: "Error resending code" });
+    return res.status(500).json({ msg: "Server error during resend" });
   }
 };
