@@ -1,23 +1,25 @@
-//Inanst-B/utils/sendEmail.js
-
-
 const { Resend } = require('resend');
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 const sendEmail = async (to, subject, html) => {
   try {
-    const response = await resend.emails.send({
-      from: process.env.EMAIL_FROM,
+    const { data, error } = await resend.emails.send({
+      from: process.env.EMAIL_FROM, 
       to,
       subject,
       html,
     });
 
-    console.log(` Email sent to ${to}`);
-    return response;
+    if (error) {
+      console.error(" Resend API Error:", error);
+      throw new Error(error.message);
+    }
+
+    console.log(`Email sent successfully to ${to}. ID: ${data.id}`);
+    return data;
   } catch (error) {
-    console.error(" Email Error:", error.message);
+    console.error(" Email execution failed:", error.message);
     throw error;
   }
 };
