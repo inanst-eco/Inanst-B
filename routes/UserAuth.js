@@ -9,8 +9,6 @@ const {
   resendVerification
 } = require('../controllers/UserAuth');
 
-
-
 // Register new user + send OTP
 router.post('/register', register);
 
@@ -23,11 +21,12 @@ router.post('/verify-code', verifyCode);
 // Resend OTP (rate-limited)
 router.post('/resend-verification', resendVerification);
 
-
-router.get('/me', auth, async (req, res) => {
+// CHANGED: /me to /profile to match frontend constants
+router.get('/profile', auth, async (req, res) => {
   try {
     const User = require('../models/User');
 
+    // req.user.id comes from the auth middleware below
     const user = await User.findById(req.user.id).select('-password');
 
     if (!user) {
@@ -37,7 +36,7 @@ router.get('/me', auth, async (req, res) => {
     res.json(user);
 
   } catch (err) {
-    console.error("Error in /me route:", err.message);
+    console.error("Error in /profile route:", err.message);
     res.status(500).json({ msg: "Server Error" });
   }
 });
