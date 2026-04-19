@@ -80,7 +80,6 @@ exports.register = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    // Attempt to send email but don't crash the whole registration if it fails
     try {
       await sendEmail(
         user.email,
@@ -96,7 +95,6 @@ exports.register = async (req, res) => {
       );
     } catch (mailError) {
       console.error("Non-fatal Mail Error during registration:", mailError.message);
-      
     }
 
     return res.status(201).json({
@@ -105,6 +103,7 @@ exports.register = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        email: user.email, // Added email field
         role: user.role,
         isVerified: false
       }
@@ -137,6 +136,7 @@ exports.login = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        email: user.email, // Added email field
         role: user.role,
         isVerified: user.isVerified
       }
@@ -183,6 +183,7 @@ exports.verifyCode = async (req, res) => {
       user: {
         id: user._id,
         name: user.name,
+        email: user.email, // Added email field
         role: user.role,
         isVerified: true
       }
@@ -217,7 +218,6 @@ exports.resendVerification = async (req, res) => {
 
     await user.save();
 
-    // Resend attempt
     try {
       await sendEmail(
         user.email,
