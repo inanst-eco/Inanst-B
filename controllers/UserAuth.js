@@ -30,7 +30,6 @@ const canSendOTP = (email) => {
   return true;
 };
 
-
 exports.register = async (req, res) => {
   try {
     const { fullName, email, password, confirmPassword, phone, country } = req.body;
@@ -50,7 +49,6 @@ exports.register = async (req, res) => {
     }
 
     const hashedPassword = await bcrypt.hash(password, 10);
-
     const otp = generateOTP();
     const expires = Date.now() + 10 * 60 * 1000; 
 
@@ -82,18 +80,24 @@ exports.register = async (req, res) => {
       { expiresIn: '1d' }
     );
 
-    await sendEmail(
-      user.email,
-      "Verify your Inanst Account",
-      `
-        <div style="font-family:sans-serif;text-align:center">
-          <h2>Welcome to Inanst 🚀</h2>
-          <p>Your verification code is:</p>
-          <h1 style="letter-spacing:8px;font-size:32px">${otp}</h1>
-          <p>This code expires in 10 minutes.</p>
-        </div>
-      `
-    );
+    // Attempt to send email but don't crash the whole registration if it fails
+    try {
+      await sendEmail(
+        user.email,
+        "Verify your Inanst Account",
+        `
+          <div style="font-family:sans-serif;text-align:center;padding:20px;border:1px solid #eee;border-radius:10px;">
+            <h2 style="color:#2563eb;">Welcome to Inanst 🚀</h2>
+            <p style="color:#666;">Use the code below to verify your email:</p>
+            <h1 style="letter-spacing:10px;font-size:40px;color:#111;background:#f8fafc;display:inline-block;padding:10px 20px;border-radius:8px;">${otp}</h1>
+            <p style="color:#999;font-size:12px;margin-top:20px;">This code expires in 10 minutes.</p>
+          </div>
+        `
+      );
+    } catch (mailError) {
+      console.error("Non-fatal Mail Error during registration:", mailError.message);
+      
+    }
 
     return res.status(201).json({
       msg: "Registration successful",
@@ -107,22 +111,19 @@ exports.register = async (req, res) => {
     });
 
   } catch (err) {
-    console.error(err);
+    console.error("Fatal Registration Error:", err);
     return res.status(500).json({ msg: "Server error during registration" });
   }
 };
 
-
 exports.login = async (req, res) => {
   try {
     const { email, password } = req.body;
-
     const user = await User.findOne({ email });
 
     if (!user) return res.status(400).json({ msg: "Invalid Credentials" });
 
     const isMatch = await bcrypt.compare(password, user.password);
-
     if (!isMatch) return res.status(400).json({ msg: "Invalid Credentials" });
 
     const token = jwt.sign(
@@ -145,7 +146,6 @@ exports.login = async (req, res) => {
     return res.status(500).json({ msg: "Server error during login" });
   }
 };
-
 
 exports.verifyCode = async (req, res) => {
   try {
@@ -193,7 +193,6 @@ exports.verifyCode = async (req, res) => {
   }
 };
 
-
 exports.resendVerification = async (req, res) => {
   try {
     const { email } = req.body;
@@ -213,23 +212,28 @@ exports.resendVerification = async (req, res) => {
     }
 
     const otp = generateOTP();
-
     user.verificationToken = otp;
     user.verificationExpires = Date.now() + 10 * 60 * 1000;
 
     await user.save();
 
-    await sendEmail(
-      user.email,
-      "New Verification Code",
-      `
-        <div style="font-family:sans-serif;text-align:center">
-          <h2>Your new OTP</h2>
-          <h1 style="letter-spacing:8px">${otp}</h1>
-          <p>Expires in 10 minutes</p>
-        </div>
-      `
-    );
+    // Resend attempt
+    try {
+      await sendEmail(
+        user.email,
+        "New Verification Code",
+        `
+          <div style="font-family:sans-serif;text-align:center;padding:20px;">
+            <h2>Your new OTP</h2>
+            <h1 style="letter-spacing:10px;font-size:40px;background:#f0f9ff;padding:10px;display:inline-block;">${otp}</h1>
+            <p>Expires in 10 minutes</p>
+          </div>
+        `
+      );
+    } catch (mailError) {
+      console.error("Resend Mail Error:", mailError.message);
+      return res.status(500).json({ msg: "Could not send email. Please try again later." });
+    }
 
     return res.json({ msg: "New code sent successfully" });
 
