@@ -1,4 +1,4 @@
-//Inanst-B/server.js
+// Inanst-B/server.js
 
 const express = require('express');
 const mongoose = require('mongoose');
@@ -13,7 +13,7 @@ const authRoutes = require('./routes/UserAuth');
 
 const app = express();
 
-
+// Essential for deployments like Render/Heroku
 app.set('trust proxy', 1);
 
 // Middleware
@@ -28,7 +28,7 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin 
+    // Allow requests with no origin (like mobile apps or curl)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -37,11 +37,13 @@ app.use(cors({
   },
   credentials: true, 
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"]
+  allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
+  optionsSuccessStatus: 200 // Fixes issues with legacy browsers and pre-flight requests
 }));
 
 // Routes
-app.use('/api/auth', authRoutes);
+// Note: Mounting authRoutes here means every route in UserAuth.js starts with /api/auth
+app.use('/api/auth', authRoutes); 
 app.use('/api', profileRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
@@ -51,15 +53,18 @@ app.get('/', (req, res) => {
   res.send('Inanst API is running smoothly.');
 });
 
-
+// Global Error Handler
 app.use((err, req, res, next) => {
   console.error('Hi, Wasem! Global Error:', err.message);
-  res.status(500).json({ error: 'Internal Server Error', message: err.message });
+  res.status(500).json({ 
+    error: 'Internal Server Error', 
+    message: err.message 
+  });
 });
 
 // Database Connection
 mongoose.connect(process.env.MONGO_URI)
-  .then(() => console.log('Hi, Wasem! you are connected to MongoDB Atlas'))
+  .then(() => console.log('Hi, Wasem! You are connected to MongoDB Atlas'))
   .catch((err) => console.error('Hi, Wasem! MongoDB Connection Error:', err));
 
 // Start Server
