@@ -1,7 +1,7 @@
-const { Enrollment, Setting } = require('./enrollmentModel');
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY); 
+const { Enrollment, Setting } = require('../models/enrollmentModel');
+const axios = require('axios');
 
-// Get the current admission status (Public)
+// Get current admission status
 exports.getEnrollmentStatus = async (req, res) => {
   try {
     const settings = await Setting.findOne();
@@ -11,58 +11,51 @@ exports.getEnrollmentStatus = async (req, res) => {
   }
 };
 
-// Start Registration & Get Payment URL
+// Start Registration & Get Paystack URL
 exports.registerAndPay = async (req, res) => {
   try {
-    // 1. Check if admission is actually "Running"
     const settings = await Setting.findOne();
     if (!settings?.isEnrollmentOpen) {
       return res.status(403).json({ message: "Admission is currently closed." });
     }
 
-    // 2. Create local enrollment record first
-    // Note: paymentStatus defaults to 'pending' in your model
+    // 1. Create local enrollment record
     const enrollment = await Enrollment.create(req.body);
 
-    // 3. Create Stripe Session
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { 
-            name: `Inanst Academy: ${req.body.course || 'Technical Training'}` 
-          },
-          unit_amount: 5000, // $50.00 - Ensure this matches your intended price
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      customer_email: req.body.email,
-      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/register`,
-      metadata: { 
-        enrollmentId: enrollment._id.toString() 
+    // 2. Initialize Paystack Transaction
+    const response = await axios.post(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        email: req.body.email,
+        amount: 5000 * 100, // Example: 5000 Naira in kobo
+        callback_url: `${process.env.FRONTEND_URL}/success`,
+        metadata: { enrollmentId: enrollment._id.toString() }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
       }
+    );
+
+    // 3. Store Paystack Reference in the record
+    await Enrollment.findByIdAndUpdate(enrollment._id, { 
+      paymentReference: response.data.data.reference 
     });
 
-    // 4. Update record with session ID so Webhook can find it later
-    await Enrollment.findByIdAndUpdate(enrollment._id, { stripeSessionId: session.id });
-
-    // 5. Send the Stripe URL to the frontend
-    res.status(200).json({ url: session.url });
+    res.status(200).json({ url: response.data.data.authorization_url });
   } catch (error) {
-    console.error("Enrollment Error:", error.message);
-    res.status(500).json({ error: error.message });
+    console.error("Paystack Init Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Payment initialization failed" });
   }
 };
 
-// Toggle "Running" status (Admin)
+// Admin: Toggle Admission
 exports.toggleAdmission = async (req, res) => {
   try {
     let settings = await Setting.findOne();
     if (!settings) settings = await Setting.create({ isEnrollmentOpen: true });
-    
     settings.isEnrollmentOpen = !settings.isEnrollmentOpen;
     await settings.save();
     res.json({ isEnrollmentOpen: settings.isEnrollmentOpen });
@@ -71,32 +64,26 @@ exports.toggleAdmission = async (req, res) => {
   }
 };
 
-// Approve & Generate ID (Admin)
+// Admin: Approve Student
 exports.approveStudent = async (req, res) => {
   try {
-    // Generate a unique School ID
     const schoolId = `INANST-${Math.floor(1000 + Math.random() * 9000)}`;
     const student = await Enrollment.findByIdAndUpdate(req.params.id, {
       enrollmentStatus: 'approved',
       schoolId: schoolId
     }, { new: true });
-
     if (!student) return res.status(404).json({ message: "Student not found" });
-    
     res.json({ message: "Approved", schoolId: student.schoolId });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 };
 
-// Withdraw/Graduate Student (Admin)
+// Admin: Withdraw Student
 exports.withdrawStudent = async (req, res) => {
   try {
-    const student = await Enrollment.findByIdAndUpdate(req.params.id, { 
-      enrollmentStatus: 'withdrawn' 
-    });
+    const student = await Enrollment.findByIdAndUpdate(req.params.id, { enrollmentStatus: 'withdrawn' });
     if (!student) return res.status(404).json({ message: "Student not found" });
-    
     res.json({ message: "Student credentials withdrawn." });
   } catch (error) {
     res.status(500).json({ error: error.message });

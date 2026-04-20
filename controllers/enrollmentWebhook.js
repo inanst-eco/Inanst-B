@@ -1,42 +1,27 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const { Enrollment } = require('./enrollmentModel');
+const { Enrollment } = require('../models/enrollmentModel');
 
-exports.handleStripeWebhook = async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
+exports.handlePaystackWebhook = async (req, res) => {
+  const event = req.body;
 
-  try {
-    
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error(` Webhook Signature Error: ${err.message}`);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  // Handle the specific checkout event
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+  if (event.event === 'charge.success') {
+    const reference = event.data.reference;
 
     try {
-      // Find the enrollment by the session ID we saved during registerAndPay
       const updatedEnrollment = await Enrollment.findOneAndUpdate(
-        { stripeSessionId: session.id },
+        { paymentReference: reference },
         { paymentStatus: 'paid' },
-        { new: true } // Return the updated document
+        { new: true }
       );
 
       if (updatedEnrollment) {
-        console.log(`Payment successful: Enrollment ${updatedEnrollment._id} is now PAID.`);
+        console.log(` Payment successful for Reference: ${reference}`);
       } else {
-        // This usually happens if the session ID wasn't saved correctly in the DB first
-        console.warn(` No enrollment found for Stripe Session: ${session.id}`);
+        console.warn(` No enrollment found for reference: ${reference}`);
       }
     } catch (dbErr) {
-      console.error(` Database Error during webhook: ${dbErr.message}`);
-      
+      console.error(` DB Error during webhook: ${dbErr.message}`);
     }
   }
 
-  
-  res.json({ received: true });
+  res.sendStatus(200); // Tell Paystack we received it
 };

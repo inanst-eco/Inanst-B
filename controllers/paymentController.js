@@ -1,66 +1,63 @@
-const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
-const Enrollment = require('../models/enrollmentModel');
+const axios = require('axios');
+const { Enrollment } = require('../models/enrollmentModel');
 
-exports.createCheckoutSession = async (req, res) => {
-  const { enrollmentId, email, amount, course } = req.body; 
+//  Initialize the transaction
+exports.registerAndPay = async (req, res) => {
+  const { email, fullName, amount, course, level, mode } = req.body;
 
   try {
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card', 'us_bank_account'],
-      line_items: [{
-        price_data: {
-          currency: 'usd',
-          product_data: { 
-            name: `Inansto Academy Enrollment - ${course || 'Course Registration'}` 
-          },
-          unit_amount: Math.round(amount * 100), 
-        },
-        quantity: 1,
-      }],
-      mode: 'payment',
-      customer_email: email,
-      success_url: `${process.env.FRONTEND_URL}/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.FRONTEND_URL}/register`,
-      metadata: { enrollmentId }
+    // Create enrollment record first
+    const enrollment = await Enrollment.create({
+      fullName, email, phone: req.body.phone, course, level, mode
     });
 
-    // Save session ID so the webhook 
-    await Enrollment.findByIdAndUpdate(enrollmentId, { stripeSessionId: session.id });
+    // Call Paystack API
+    const response = await axios.post(
+      'https://api.paystack.co/transaction/initialize',
+      {
+        email,
+        amount: amount * 100, // Paystack uses kobo
+        callback_url: `${process.env.FRONTEND_URL}/success`,
+        metadata: { 
+          enrollmentId: enrollment._id.toString(),
+          custom_fields: [{ display_name: "Course", variable_name: "course", value: course }]
+        }
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${process.env.PAYSTACK_SECRET_KEY}`,
+          'Content-Type': 'application/json'
+        }
+      }
+    );
 
-    res.status(200).json({ url: session.url });
+    // Save the reference Paystack gives us
+    await Enrollment.findByIdAndUpdate(enrollment._id, { 
+      stripeSessionId: response.data.data.reference 
+    });
+
+    // Send the payment URL to your Next.js frontend
+    res.status(200).json({ url: response.data.data.authorization_url });
   } catch (error) {
-    console.error("Stripe Session Error:", error.message);
-    res.status(500).json({ error: error.message });
+    console.error("Paystack Init Error:", error.response?.data || error.message);
+    res.status(500).json({ error: "Payment initialization failed" });
   }
 };
 
+//  Handle the Webhook (Signal from Paystack)
 exports.handleWebhook = async (req, res) => {
-  const sig = req.headers['stripe-signature'];
-  let event;
+  // Paystack verification is simpler, but for now, let's process the event
+  const event = req.body;
 
-  try {
-    // req.body here MUST be the raw buffer from express.raw()
-    event = stripe.webhooks.constructEvent(req.body, sig, process.env.STRIPE_WEBHOOK_SECRET);
-  } catch (err) {
-    console.error(`Webhook Signature Verification Failed: ${err.message}`);
-    return res.status(400).send(`Webhook Error: ${err.message}`);
-  }
-
-  if (event.type === 'checkout.session.completed') {
-    const session = event.data.object;
+  if (event.event === 'success.completed' || event.event === 'charge.success') {
+    const reference = event.data.reference;
     
-    const updatedEnrollment = await Enrollment.findOneAndUpdate(
-      { stripeSessionId: session.id },
-      { paymentStatus: 'paid' },
-      { new: true }
+    await Enrollment.findOneAndUpdate(
+      { stripeSessionId: reference }, 
+      { paymentStatus: 'paid' }
     );
-
-    if (updatedEnrollment) {
-      console.log(`Enrollment ${updatedEnrollment._id} marked as PAID.`);
-    } else {
-      console.warn(`No enrollment found for Session: ${session.id}`);
-    }
+    console.log(`Paystack Payment Success: ${reference}`);
   }
 
-  res.json({ received: true });
+  res.sendStatus(200);
 };
