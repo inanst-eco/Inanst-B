@@ -8,15 +8,13 @@ const EnrollmentSchema = new mongoose.Schema({
   level: { type: String, enum: ['beginner', 'intermediate', 'advance'], required: true },
   mode: { type: String, enum: ['distance', 'in-person'], required: true },
   
-  // Stripe Integration
-  stripeSessionId: { type: String }, 
+  paymentReference: { type: String }, 
   paymentStatus: { 
     type: String, 
     enum: ['pending', 'paid', 'failed'], 
     default: 'pending' 
   },
   
-  // School Access
   enrollmentStatus: { 
     type: String, 
     enum: ['pending_approval', 'approved', 'withdrawn'], 
@@ -26,9 +24,7 @@ const EnrollmentSchema = new mongoose.Schema({
   schoolId: { type: String, unique: true, sparse: true }
 }, { timestamps: true });
 
-
 const SettingSchema = new mongoose.Schema({
-  
   isEnrollmentOpen: { type: Boolean, default: true }
 });
 

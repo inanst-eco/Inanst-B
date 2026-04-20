@@ -1,14 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const ctrl = require('./enrollmentController');
+const ctrl = require('../controllers/enrollmentController');
 
 // Public
 router.post('/register', ctrl.registerAndPay);
-router.get('/status', async (req, res) => {
-  const { Setting } = require('./enrollmentModel');
-  const settings = await Setting.findOne();
-  res.json({ running: settings?.isEnrollmentOpen });
-});
+router.get('/status', ctrl.getEnrollmentStatus);
 
 // Admin/Worker Only
 router.patch('/approve/:id', ctrl.approveStudent);
