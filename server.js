@@ -1,5 +1,3 @@
-// Inanst-B/server.js
-
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -10,9 +8,17 @@ const profileRoutes = require('./routes/profile');
 const newsletterRoutes = require('./routes/newsletter');
 const contactRoutes = require('./routes/contact');
 const authRoutes = require('./routes/UserAuth');
+const paymentController = require('./controllers/paymentController');
+const enrollmentRoutes = require('./routes/enrollmentRoutes');
+const comments = require('./routes/comments');
+
+
+
 
 const app = express();
 
+
+app.post('/webhook', express.raw({ type: 'application/json' }), paymentController.handleWebhook);
 // Essential for deployments like Render/Heroku
 app.set('trust proxy', 1);
 
@@ -38,15 +44,17 @@ app.use(cors({
   credentials: true, 
   methods: ["GET", "POST", "PUT", "DELETE", "PATCH", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "X-Requested-With", "Accept"],
-  optionsSuccessStatus: 200 // Fixes issues with legacy browsers and pre-flight requests
+  optionsSuccessStatus: 200 
 }));
 
 // Routes
-// Note: Mounting authRoutes here means every route in UserAuth.js starts with /api/auth
+
 app.use('/api/auth', authRoutes); 
 app.use('/api', profileRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
+app.use('/api/v1/enrollments', enrollmentRoutes);
+app.use('/api/v1/comments', comments);
 
 // Root Health Check
 app.get('/', (req, res) => {
