@@ -24,6 +24,7 @@
   },
   "homepage": "https://github.com/genstohub/Inanst-B#readme",
   "dependencies": {
+    "axios": "^1.15.1",
     "bcryptjs": "^3.0.3",
     "cors": "^2.8.6",
     "dotenv": "^17.3.1",
