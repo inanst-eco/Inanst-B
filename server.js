@@ -12,13 +12,11 @@ const paymentController = require('./controllers/paymentController');
 const enrollmentRoutes = require('./routes/enrollmentRoutes');
 const comments = require('./routes/comments');
 
-
-
-
 const app = express();
 
-
+// STRIPE WEBHOOK 
 app.post('/webhook', express.raw({ type: 'application/json' }), paymentController.handleWebhook);
+
 // Essential for deployments like Render/Heroku
 app.set('trust proxy', 1);
 
@@ -34,7 +32,6 @@ const allowedOrigins = [
 
 app.use(cors({
   origin: function (origin, callback) {
-    // Allow requests with no origin (like mobile apps or curl)
     if (!origin || allowedOrigins.includes(origin)) {
       callback(null, true);
     } else {
@@ -48,13 +45,15 @@ app.use(cors({
 }));
 
 // Routes
-
 app.use('/api/auth', authRoutes); 
 app.use('/api', profileRoutes);
 app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/comments', comments);
+
+// STRIPE CHECKOUT ROUTE
+app.post('/api/v1/payments/create-checkout-session', paymentController.createCheckoutSession);
 
 // Root Health Check
 app.get('/', (req, res) => {
