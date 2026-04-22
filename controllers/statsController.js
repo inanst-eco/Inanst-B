@@ -1,5 +1,7 @@
 const { Enrollment } = require('../models/enrollmentModel');
 const User = require('../models/User'); 
+// Ensure this model points to your actual newsletter collection
+const Newsletter = require('../models/newsletterModel'); 
 
 exports.getDashboardStats = async (req, res) => {
     try {
@@ -10,7 +12,7 @@ exports.getDashboardStats = async (req, res) => {
             enrollments,
             payments,
             liveUsers,
-            newsletter,
+            newsletterCount, // Updated variable name
             internships,
             partnerships,
             exams,
@@ -23,8 +25,9 @@ exports.getDashboardStats = async (req, res) => {
             Enrollment.countDocuments({ paymentStatus: 'failed' }), 
             User.countDocuments({ isLive: true }), 
             
-            // Counts for operational cards
-            User.countDocuments({ subscribed: true }),
+            // FIX: Query the specific Newsletter collection instead of User.subscribed
+            Newsletter.countDocuments(),
+            
             Enrollment.countDocuments({ selectedItems: 'internship' }), 
             Enrollment.countDocuments({ selectedItems: 'partnership' }),
             Enrollment.countDocuments({ selectedItems: 'exam' }),
@@ -49,11 +52,11 @@ exports.getDashboardStats = async (req, res) => {
             ])
         ]);
 
-        // LOGIC FIX: Map DB fields to match the Frontend UI property names
+        // Map DB fields to match the Frontend UI property names
         const recentEnrollments = recentEnrollmentsRaw.map(enrollment => ({
             _id: enrollment._id,
-            studentName: enrollment.fullName, // UI expects studentName
-            status: enrollment.paymentStatus,  // UI expects status
+            studentName: enrollment.fullName, 
+            status: enrollment.paymentStatus,  
             createdAt: enrollment.createdAt
         }));
 
@@ -67,13 +70,13 @@ exports.getDashboardStats = async (req, res) => {
                     live: liveUsers || 0,
                 },
                 operational: {
-                    newsletter: newsletter || 0,
+                    newsletter: newsletterCount || 0, //  DB
                     contacts: 0,
                     internships: internships || 0,
                     partnerships: partnerships || 0,
                     exams: exams || 0,
                     comments: comments || 0,
-                    collabs: 0 // Added to support the Collaboration card in UI
+                    collabs: 0 
                 },
                 recentEnrollments,
                 growthChart: growthData.map(item => ({

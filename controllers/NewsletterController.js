@@ -1,3 +1,7 @@
+//Inanst-B/controllers/NewsletterController.js
+
+
+
 const Newsletter = require('../models/Newsletter');
 
 const subscribeToNewsletter = async (req, res) => {
