@@ -1,7 +1,8 @@
 const { Enrollment } = require('../models/enrollmentModel');
 const User = require('../models/User'); 
-// Ensure this model points to your actual newsletter collection
-const Newsletter = require('../models/newsletterModel'); 
+
+// FIX: Changed from 'newsletterModel' to 'Newsletter' to match your file name
+const Newsletter = require('../models/Newsletter'); 
 
 exports.getDashboardStats = async (req, res) => {
     try {
@@ -12,7 +13,7 @@ exports.getDashboardStats = async (req, res) => {
             enrollments,
             payments,
             liveUsers,
-            newsletterCount, // Updated variable name
+            newsletterCount,
             internships,
             partnerships,
             exams,
@@ -20,26 +21,23 @@ exports.getDashboardStats = async (req, res) => {
             recentEnrollmentsRaw,
             growthData
         ] = await Promise.all([
-            // Counts for main metrics
             Enrollment.countDocuments({ paymentStatus: 'pending' }),
             Enrollment.countDocuments({ paymentStatus: 'failed' }), 
             User.countDocuments({ isLive: true }), 
             
-            // FIX: Query the specific Newsletter collection instead of User.subscribed
-            Newsletter.countDocuments(),
+            // This will now work because the import above is fixed
+            Newsletter.countDocuments(), 
             
             Enrollment.countDocuments({ selectedItems: 'internship' }), 
             Enrollment.countDocuments({ selectedItems: 'partnership' }),
             Enrollment.countDocuments({ selectedItems: 'exam' }),
             User.countDocuments({ "comments.0": { "$exists": true } }),
 
-            // Fetch recent items
             Enrollment.find()
                 .select('fullName paymentStatus createdAt') 
                 .sort({ createdAt: -1 })
                 .limit(5),
 
-            // Aggregate growth data
             User.aggregate([
                 { $match: { createdAt: { $gte: sevenDaysAgo } } },
                 {
@@ -52,11 +50,10 @@ exports.getDashboardStats = async (req, res) => {
             ])
         ]);
 
-        // Map DB fields to match the Frontend UI property names
         const recentEnrollments = recentEnrollmentsRaw.map(enrollment => ({
             _id: enrollment._id,
-            studentName: enrollment.fullName, 
-            status: enrollment.paymentStatus,  
+            studentName: enrollment.fullName,
+            status: enrollment.paymentStatus,
             createdAt: enrollment.createdAt
         }));
 
@@ -70,13 +67,13 @@ exports.getDashboardStats = async (req, res) => {
                     live: liveUsers || 0,
                 },
                 operational: {
-                    newsletter: newsletterCount || 0, //  DB
+                    newsletter: newsletterCount || 0,
                     contacts: 0,
                     internships: internships || 0,
                     partnerships: partnerships || 0,
                     exams: exams || 0,
                     comments: comments || 0,
-                    collabs: 0 
+                    collabs: 0
                 },
                 recentEnrollments,
                 growthChart: growthData.map(item => ({
@@ -86,6 +83,7 @@ exports.getDashboardStats = async (req, res) => {
             }
         });
     } catch (error) {
+        // Keeping your custom log!
         console.error("Hi Wasem, API Error:", error);
         res.status(500).json({ success: false, message: "Server Error" });
     }
