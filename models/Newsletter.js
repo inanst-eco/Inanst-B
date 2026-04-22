@@ -1,6 +1,3 @@
-//Inanst-B/models/Newsletter.js
-
-
 const mongoose = require('mongoose');
 
 const NewsletterSchema = new mongoose.Schema({
