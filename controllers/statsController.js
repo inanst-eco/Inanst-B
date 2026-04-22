@@ -15,25 +15,28 @@ exports.getDashboardStats = async (req, res) => {
             partnerships,
             exams,
             comments,
-            recentEnrollments,
+            recentEnrollmentsRaw,
             growthData
         ] = await Promise.all([
-            // Use the fields we defined in your final Enrollment model
+            // Counts for main metrics
             Enrollment.countDocuments({ paymentStatus: 'pending' }),
             Enrollment.countDocuments({ paymentStatus: 'failed' }), 
             User.countDocuments({ isLive: true }), 
             
+            // Counts for operational cards
             User.countDocuments({ subscribed: true }),
             Enrollment.countDocuments({ selectedItems: 'internship' }), 
             Enrollment.countDocuments({ selectedItems: 'partnership' }),
             Enrollment.countDocuments({ selectedItems: 'exam' }),
             User.countDocuments({ "comments.0": { "$exists": true } }),
 
+            // Fetch recent items
             Enrollment.find()
-                .select('fullName paymentStatus createdAt') // Changed studentName to fullName to match model
+                .select('fullName paymentStatus createdAt') 
                 .sort({ createdAt: -1 })
                 .limit(5),
 
+            // Aggregate growth data
             User.aggregate([
                 { $match: { createdAt: { $gte: sevenDaysAgo } } },
                 {
@@ -45,6 +48,14 @@ exports.getDashboardStats = async (req, res) => {
                 { $sort: { "_id": 1 } }
             ])
         ]);
+
+        // LOGIC FIX: Map DB fields to match the Frontend UI property names
+        const recentEnrollments = recentEnrollmentsRaw.map(enrollment => ({
+            _id: enrollment._id,
+            studentName: enrollment.fullName, // UI expects studentName
+            status: enrollment.paymentStatus,  // UI expects status
+            createdAt: enrollment.createdAt
+        }));
 
         res.status(200).json({
             success: true,
@@ -61,7 +72,8 @@ exports.getDashboardStats = async (req, res) => {
                     internships: internships || 0,
                     partnerships: partnerships || 0,
                     exams: exams || 0,
-                    comments: comments || 0
+                    comments: comments || 0,
+                    collabs: 0 // Added to support the Collaboration card in UI
                 },
                 recentEnrollments,
                 growthChart: growthData.map(item => ({
