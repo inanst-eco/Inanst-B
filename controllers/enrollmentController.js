@@ -1,6 +1,14 @@
 const { Enrollment, Setting } = require('../models/enrollmentModel');
 const axios = require('axios');
 
+//  Define your price list here (Prices in Naira)
+const FEES = {
+  tuition: 5000,
+  exam: 2000,
+  certificate: 3000,
+  handout: 1000
+};
+
 // Get current admission status
 exports.getEnrollmentStatus = async (req, res) => {
   try {
@@ -19,17 +27,32 @@ exports.registerAndPay = async (req, res) => {
       return res.status(403).json({ message: "Admission is currently closed." });
     }
 
-    // 1. Create local enrollment record
-    const enrollment = await Enrollment.create(req.body);
+    
+    const { email, selectedItems = ['tuition'] } = req.body;
 
-    // 2. Initialize Paystack Transaction
+    // 3. Calculate dynamic total amount
+    const totalAmount = selectedItems.reduce((sum, item) => {
+      return sum + (FEES[item] || 0);
+    }, 0);
+
+    // 4. Create local enrollment record with the total and items
+    const enrollment = await Enrollment.create({
+      ...req.body,
+      totalAmount: totalAmount,
+      selectedItems: selectedItems
+    });
+
+    // 5. Initialize Paystack Transaction with the calculated amount
     const response = await axios.post(
       'https://api.paystack.co/transaction/initialize',
       {
-        email: req.body.email,
-        amount: 5000 * 100, // Example: 5000 Naira in kobo
+        email: email,
+        amount: totalAmount * 100, // Now dynamic! (Naira to Kobo)
         callback_url: `${process.env.FRONTEND_URL}/success`,
-        metadata: { enrollmentId: enrollment._id.toString() }
+        metadata: { 
+          enrollmentId: enrollment._id.toString(),
+          items: selectedItems 
+        }
       },
       {
         headers: {
@@ -39,7 +62,7 @@ exports.registerAndPay = async (req, res) => {
       }
     );
 
-    // 3. Store Paystack Reference in the record
+    // 6. Store Paystack Reference
     await Enrollment.findByIdAndUpdate(enrollment._id, { 
       paymentReference: response.data.data.reference 
     });
@@ -64,7 +87,7 @@ exports.toggleAdmission = async (req, res) => {
   }
 };
 
-// Admin: Approve Student
+// Admin functions (approve/withdraw) remain the same...
 exports.approveStudent = async (req, res) => {
   try {
     const schoolId = `INANST-${Math.floor(1000 + Math.random() * 9000)}`;
@@ -79,7 +102,6 @@ exports.approveStudent = async (req, res) => {
   }
 };
 
-// Admin: Withdraw Student
 exports.withdrawStudent = async (req, res) => {
   try {
     const student = await Enrollment.findByIdAndUpdate(req.params.id, { enrollmentStatus: 'withdrawn' });

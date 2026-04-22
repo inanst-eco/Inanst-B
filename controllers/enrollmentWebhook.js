@@ -3,25 +3,37 @@ const { Enrollment } = require('../models/enrollmentModel');
 exports.handlePaystackWebhook = async (req, res) => {
   const event = req.body;
 
+  
   if (event.event === 'charge.success') {
-    const reference = event.data.reference;
+    const { reference, amount, metadata } = event.data;
 
     try {
+      
+      const schoolId = `INANST-${Math.floor(1000 + Math.random() * 9000)}`;
+      
       const updatedEnrollment = await Enrollment.findOneAndUpdate(
         { paymentReference: reference },
-        { paymentStatus: 'paid' },
+        { 
+          paymentStatus: 'paid',
+          enrollmentStatus: 'approved', 
+          schoolId: schoolId            
+        },
         { new: true }
       );
 
       if (updatedEnrollment) {
         console.log(` Payment successful for Reference: ${reference}`);
+        console.log(` Student ${updatedEnrollment.fullName} auto-approved with ID: ${schoolId}`);
+        
+        
       } else {
-        console.warn(` No enrollment found for reference: ${reference}`);
+        console.warn(` Payment received but no enrollment record found for reference: ${reference}`);
       }
     } catch (dbErr) {
-      console.error(` DB Error during webhook: ${dbErr.message}`);
+      console.error(` DB Error during Paystack webhook: ${dbErr.message}`);
     }
   }
 
+  
   res.sendStatus(200); 
 };
