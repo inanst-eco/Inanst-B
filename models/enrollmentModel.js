@@ -1,6 +1,13 @@
 const mongoose = require('mongoose');
 
 const EnrollmentSchema = new mongoose.Schema({
+  // Link to the User who is enrolling
+  userId: { 
+    type: mongoose.Schema.Types.ObjectId, 
+    ref: 'User',
+    required: true 
+  },
+
   // Personal Information
   fullName: { type: String, required: true },
   email: { type: String, required: true },
@@ -8,17 +15,26 @@ const EnrollmentSchema = new mongoose.Schema({
   
   // --- Course Details ---
   course: { type: String, required: true },
-  level: { type: String, enum: ['beginner', 'intermediate', 'advance'], required: true },
-  mode: { type: String, enum: ['distance', 'in-person'], required: true },
+  level: { 
+    type: String, 
+    enum: ['beginner', 'intermediate', 'advance'], 
+    required: true 
+  },
+  mode: { 
+    type: String, 
+    enum: ['distance', 'in-person'], 
+    required: true 
+  },
 
   // Payment & Services
   selectedItems: [{ 
     type: String, 
-    enum: ['tuition', 'exam', 'certificate', 'handout'] 
+    // UPDATED: Added internship and partnership to match dashboard stats logic
+    enum: ['tuition', 'exam', 'certificate', 'handout', 'internship', 'partnership'] 
   }],
   totalAmount: { 
     type: Number, 
-    required: true // Store the final price in Naira
+    required: true 
   },
   paymentReference: { 
     type: String, 
@@ -27,11 +43,12 @@ const EnrollmentSchema = new mongoose.Schema({
   },
   paymentStatus: { 
     type: String, 
-    enum: ['pending', 'paid', 'failed'], 
+    // UPDATED: Added 'abandoned' to track users who quit at checkout
+    enum: ['pending', 'paid', 'failed', 'abandoned'], 
     default: 'pending' 
   },
 
-  //  Academic Status
+  // Academic Status
   enrollmentStatus: { 
     type: String, 
     enum: ['pending_approval', 'approved', 'withdrawn'], 
