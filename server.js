@@ -13,6 +13,7 @@ const comments = require('./routes/comments');
 
 // Import the Webhook Controller specifically
 const enrollmentWebhook = require('./controllers/enrollmentWebhook');
+const { getDashboardStats } = require('../controllers/statsController');
 
 const app = express();
 
@@ -54,6 +55,7 @@ app.use('/api/newsletter', newsletterRoutes);
 app.use('/api/contact', contactRoutes);
 app.use('/api/v1/enrollments', enrollmentRoutes);
 app.use('/api/v1/comments', comments);
+router.get('/dashboard', getDashboardStats);
 
 
 
