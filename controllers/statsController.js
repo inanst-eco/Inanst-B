@@ -1,7 +1,5 @@
 const { Enrollment } = require('../models/enrollmentModel');
 const User = require('../models/User'); 
-
-// FIX: Changed from 'newsletterModel' to 'Newsletter' to match your file name
 const Newsletter = require('../models/Newsletter'); 
 
 exports.getDashboardStats = async (req, res) => {
@@ -12,7 +10,7 @@ exports.getDashboardStats = async (req, res) => {
         const [
             enrollments,
             payments,
-            liveUsers,
+            registeredUsers, // Changed: Now counting all registered users
             newsletterCount,
             internships,
             partnerships,
@@ -23,11 +21,11 @@ exports.getDashboardStats = async (req, res) => {
         ] = await Promise.all([
             Enrollment.countDocuments({ paymentStatus: 'pending' }),
             Enrollment.countDocuments({ paymentStatus: 'failed' }), 
-            User.countDocuments({ isLive: true }), 
             
-            // This will now work because the import above is fixed
+            // LOGIC UPDATE: Count all users in the collection for "Registered" stats
+            User.countDocuments({}), 
+            
             Newsletter.countDocuments(), 
-            
             Enrollment.countDocuments({ selectedItems: 'internship' }), 
             Enrollment.countDocuments({ selectedItems: 'partnership' }),
             Enrollment.countDocuments({ selectedItems: 'exam' }),
@@ -64,7 +62,9 @@ exports.getDashboardStats = async (req, res) => {
                     enrollments: enrollments || 0,
                     payments: payments || 0,
                     supports: 0,
-                    live: liveUsers || 0,
+                    // We keep the key name "live" so the frontend Card (Live Now) 
+                    // automatically shows the total Registered count.
+                    live: registeredUsers || 0,
                 },
                 operational: {
                     newsletter: newsletterCount || 0,
@@ -83,7 +83,6 @@ exports.getDashboardStats = async (req, res) => {
             }
         });
     } catch (error) {
-        // Keeping your custom log!
         console.error("Hi Wasem, API Error:", error);
         res.status(500).json({ success: false, message: "Server Error" });
     }
