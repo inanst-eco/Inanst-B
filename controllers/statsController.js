@@ -4,13 +4,15 @@ const Newsletter = require('../models/Newsletter');
 
 exports.getDashboardStats = async (req, res) => {
     try {
+        // Setup date range for the last 7 days
+        const today = new Date();
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
         const [
             enrollments,
             payments,
-            registeredUsers, // Changed: Now counting all registered users
+            registeredUsers,
             newsletterCount,
             internships,
             partnerships,
@@ -21,10 +23,7 @@ exports.getDashboardStats = async (req, res) => {
         ] = await Promise.all([
             Enrollment.countDocuments({ paymentStatus: 'pending' }),
             Enrollment.countDocuments({ paymentStatus: 'failed' }), 
-            
-            // LOGIC UPDATE: Count all users in the collection for "Registered" stats
             User.countDocuments({}), 
-            
             Newsletter.countDocuments(), 
             Enrollment.countDocuments({ selectedItems: 'internship' }), 
             Enrollment.countDocuments({ selectedItems: 'partnership' }),
@@ -36,6 +35,7 @@ exports.getDashboardStats = async (req, res) => {
                 .sort({ createdAt: -1 })
                 .limit(5),
 
+            //  Group by day for the chart
             User.aggregate([
                 { $match: { createdAt: { $gte: sevenDaysAgo } } },
                 {
@@ -47,6 +47,22 @@ exports.getDashboardStats = async (req, res) => {
                 { $sort: { "_id": 1 } }
             ])
         ]);
+
+        //  Logic to fill in missing days with 0 
+        const last7Days = [];
+        for (let i = 6; i >= 0; i--) {
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            
+            
+            const dayData = growthData.find(item => item._id === dateStr);
+            
+            last7Days.push({
+                label: date.toLocaleDateString('en-US', { weekday: 'short' }), 
+                value: dayData ? dayData.count : 0
+            });
+        }
 
         const recentEnrollments = recentEnrollmentsRaw.map(enrollment => ({
             _id: enrollment._id,
@@ -62,8 +78,6 @@ exports.getDashboardStats = async (req, res) => {
                     enrollments: enrollments || 0,
                     payments: payments || 0,
                     supports: 0,
-                    // We keep the key name "live" so the frontend Card (Live Now) 
-                    // automatically shows the total Registered count.
                     live: registeredUsers || 0,
                 },
                 operational: {
@@ -76,10 +90,7 @@ exports.getDashboardStats = async (req, res) => {
                     collabs: 0
                 },
                 recentEnrollments,
-                growthChart: growthData.map(item => ({
-                    label: new Date(item._id).toLocaleDateString('en-US', { weekday: 'short' }),
-                    value: item.count
-                }))
+                growthChart: last7Days 
             }
         });
     } catch (error) {
