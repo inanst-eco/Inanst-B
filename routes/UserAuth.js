@@ -1,6 +1,8 @@
 const express = require('express');
 const router = express.Router();
-const auth = require('../middleware/auth');
+
+// Destructure 'protect' from your middleware object
+const { protect } = require('../middleware/auth');
 
 const {
   register,
@@ -21,12 +23,12 @@ router.post('/verify-code', verifyCode);
 // Resend OTP (rate-limited)
 router.post('/resend-verification', resendVerification);
 
-// CHANGED: /me to /profile to match frontend constants
-router.get('/profile', auth, async (req, res) => {
+// FIXED: Changed 'auth' to 'protect' to match the import above
+router.get('/profile', protect, async (req, res) => {
   try {
     const User = require('../models/User');
 
-    // req.user.id comes from the auth middleware below
+    // req.user.id comes from the 'protect' middleware
     const user = await User.findById(req.user.id).select('-password');
 
     if (!user) {
