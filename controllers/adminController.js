@@ -2,7 +2,7 @@ const User = require('../models/User');
 const Activity = require('../models/Activity'); 
 const Enrollment = require('../models/Enrollment');
 
-export const getAdminOversightStats = async (req, res) => {
+const getAdminOversightStats = async (req, res) => {
     try {
         // Core Role Distribution
         const [students, workers, instructors] = await Promise.all([
@@ -90,7 +90,7 @@ export const getAdminOversightStats = async (req, res) => {
     }
 };
 
-export const updateUserRole = async (req, res) => {
+const updateUserRole = async (req, res) => {
     const { userId, newRole } = req.body;
     try {
         const user = await User.findByIdAndUpdate(
@@ -102,4 +102,10 @@ export const updateUserRole = async (req, res) => {
     } catch (error) {
         res.status(500).json({ success: false, message: "Promotion/Depromotion failed" });
     }
+};
+
+// CommonJS Exports
+module.exports = {
+    getAdminOversightStats,
+    updateUserRole
 };
