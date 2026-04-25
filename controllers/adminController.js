@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const Activity = require('../models/Activity'); 
-const Enrollment = require('../models/enrollmentModel');
+const Enrollment = require('../models/enrollmentModel'); 
 
 const getAdminOversightStats = async (req, res) => {
     try {
@@ -11,7 +11,7 @@ const getAdminOversightStats = async (req, res) => {
             User.countDocuments({ role: 'instructor' })
         ]);
 
-        // Visitor Percentage Rate Calculation (Today vs Yesterday)
+        // Visitor Percentage Rate Calculation 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const yesterday = new Date(today);
@@ -25,7 +25,6 @@ const getAdminOversightStats = async (req, res) => {
         const todayCount = visitorsToday.length;
         const yesterdayCount = visitorsYesterday.length;
         
-        // Calculate percentage increase/decrease
         let visitorRate = 0;
         if (yesterdayCount > 0) {
             visitorRate = ((todayCount - yesterdayCount) / yesterdayCount) * 100;
@@ -52,7 +51,7 @@ const getAdminOversightStats = async (req, res) => {
             Enrollment.countDocuments({ status: 'pending' })
         ]);
 
-        //  Growth Aggregation 
+        // Growth Aggregation 
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -104,7 +103,7 @@ const updateUserRole = async (req, res) => {
     }
 };
 
-// CommonJS Exports
+
 module.exports = {
     getAdminOversightStats,
     updateUserRole
