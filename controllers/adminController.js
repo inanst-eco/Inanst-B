@@ -1,13 +1,17 @@
 const User = require('../models/User');
 const Activity = require('../models/Activity'); 
 const Enrollment = require('../models/enrollmentModel');
+const Newsletter = require('../models/Newsletter'); 
 
 const getAdminOversightStats = async (req, res) => {
     try {
-        const [students, workers, instructors] = await Promise.all([
+        
+        const [students, workers, instructors, regulars, newsletterCount] = await Promise.all([
             User.countDocuments({ role: 'student' }),
             User.countDocuments({ role: 'worker' }),
-            User.countDocuments({ role: 'instructor' })
+            User.countDocuments({ role: 'instructor' }),
+            User.countDocuments({ role: 'regular' }), 
+            Newsletter.countDocuments() 
         ]);
 
         const today = new Date();
@@ -35,9 +39,7 @@ const getAdminOversightStats = async (req, res) => {
                 $group: {
                     _id: "$role",
                     avgSessionDuration: { $avg: "$metadata.duration" },
-                    totalLogins: { $sum: { $cond: [{ $eq: ["$action", "login"] }, 1, 0] } },
-                    mostVisitedCard: { $first: "$metadata.cardName" },
-                    totalResponses: { $sum: { $cond: [{ $ne: ["$metadata.targetId", null] }, 1, 0] } }
+                    totalLogins: { $sum: { $cond: [{ $eq: ["$action", "login"] }, 1, 0] } }
                 }
             }
         ]);
@@ -58,18 +60,23 @@ const getAdminOversightStats = async (req, res) => {
                     count: { $sum: 1 }
                 }
             },
-            { $sort: { "_id": 1 } }
+            { $sort: { "createdAt": 1 } }
         ]);
 
         res.status(200).json({
             success: true,
             data: {
                 mainStats: {
-                    users: students,
+                    users: students + regulars, 
                     workers: workers,
                     instructors: instructors,
                     visitorRate: visitorRate.toFixed(1), 
                     visitorsToday: todayCount
+                },
+                operational: {
+                    newsletter: newsletterCount,
+                    contacts: 0, 
+                    internships: 0
                 },
                 oversight: {
                     workerResponses: pendingResponses,
@@ -84,6 +91,7 @@ const getAdminOversightStats = async (req, res) => {
     }
 };
 
+// Logic for Role Management
 const updateUserRole = async (req, res) => {
     const { userId, newRole } = req.body;
     try {
@@ -94,8 +102,19 @@ const updateUserRole = async (req, res) => {
     }
 };
 
-// EXPORT BLOCK
+//  Delete User Logic
+const deleteUser = async (req, res) => {
+    const { userId } = req.params;
+    try {
+        await User.findByIdAndDelete(userId);
+        res.status(200).json({ success: true, message: "User account deleted permanently" });
+    } catch (error) {
+        res.status(500).json({ success: false, message: "Deletion failed" });
+    }
+};
+
 module.exports = {
     getAdminOversightStats,
-    updateUserRole
+    updateUserRole,
+    deleteUser
 };
