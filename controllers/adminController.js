@@ -1,17 +1,15 @@
 const User = require('../models/User');
 const Activity = require('../models/Activity'); 
-const Enrollment = require('../models/enrollmentModel'); 
+const Enrollment = require('../models/enrollmentModel');
 
 const getAdminOversightStats = async (req, res) => {
     try {
-        // Core Role Distribution
         const [students, workers, instructors] = await Promise.all([
             User.countDocuments({ role: 'student' }),
             User.countDocuments({ role: 'worker' }),
             User.countDocuments({ role: 'instructor' })
         ]);
 
-        // Visitor Percentage Rate Calculation 
         const today = new Date();
         today.setHours(0, 0, 0, 0);
         const yesterday = new Date(today);
@@ -32,7 +30,6 @@ const getAdminOversightStats = async (req, res) => {
             visitorRate = 100; 
         }
 
-        // Deep Activity & Engagement Monitoring 
         const activityStats = await Activity.aggregate([
             {
                 $group: {
@@ -45,13 +42,11 @@ const getAdminOversightStats = async (req, res) => {
             }
         ]);
 
-        // Operational Pulse 
         const [pendingResponses, pendingEnrollments] = await Promise.all([
             Activity.countDocuments({ action: 'worker_response', status: 'pending' }),
             Enrollment.countDocuments({ status: 'pending' })
         ]);
 
-        // Growth Aggregation 
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
@@ -92,18 +87,14 @@ const getAdminOversightStats = async (req, res) => {
 const updateUserRole = async (req, res) => {
     const { userId, newRole } = req.body;
     try {
-        const user = await User.findByIdAndUpdate(
-            userId, 
-            { role: newRole }, 
-            { new: true }
-        );
+        const user = await User.findByIdAndUpdate(userId, { role: newRole }, { new: true });
         res.status(200).json({ success: true, user, message: `Role updated to ${newRole}` });
     } catch (error) {
         res.status(500).json({ success: false, message: "Promotion/Depromotion failed" });
     }
 };
 
-
+// EXPORT BLOCK
 module.exports = {
     getAdminOversightStats,
     updateUserRole

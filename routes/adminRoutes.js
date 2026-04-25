@@ -1,16 +1,19 @@
 const express = require('express');
 const router = express.Router();
 
-// Destructure from the required controller
-const { 
-    getAdminOversightStats, 
-    updateUserRole 
-} = require('../controllers/adminController');
+// Check Controller Imports
+const adminController = require('../controllers/adminController');
+// Check Middleware Imports
+const authMiddleware = require('../middleware/auth.js');
+
+// Destructure safely
+const { getAdminOversightStats, updateUserRole } = adminController;
+const { protect, adminOnly } = authMiddleware;
 
 
-const { protect, adminOnly } = require('../middleware/auth');
+console.log("Wasem Debug - Oversight Fn:", typeof getAdminOversightStats);
+console.log("Wasem Debug - Protect Fn:", typeof protect);
 
-// Route Registration
 router.get('/oversight-stats', protect, adminOnly, getAdminOversightStats);
 router.patch('/update-role', protect, adminOnly, updateUserRole);
 
