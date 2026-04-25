@@ -1,6 +1,6 @@
 const User = require('../models/User');
 const Activity = require('../models/Activity'); 
-const Enrollment = require('../models/Enrollment');
+const Enrollment = require('../models/enrollmentModel');
 
 const getAdminOversightStats = async (req, res) => {
     try {
