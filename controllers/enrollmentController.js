@@ -1,7 +1,7 @@
 const { Enrollment, Setting } = require('../models/enrollmentModel');
 const axios = require('axios');
 
-//  Define your price list here (Prices in Naira)
+//  
 const FEES = {
   tuition: 5000,
   exam: 2000,
