@@ -6,7 +6,7 @@ const {
     updateUserRole 
 } = require('../controllers/adminController');
 
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect, adminOnly } = require('../middleware/auth');
 
 router.get('/oversight-stats', protect, adminOnly, getAdminOversightStats);
 router.patch('/update-role', protect, adminOnly, updateUserRole);
