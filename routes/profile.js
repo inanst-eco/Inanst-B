@@ -6,8 +6,7 @@ const router = express.Router();
 const { getUserProfile } = require('../controllers/UserController');
 
 // Import Middleware 
-const protect = require('../middleware/auth.js'); 
-
+const { protect, adminOnly } = require('../middleware/auth');
 //Safety Check for Debugging
 if (typeof protect !== 'function') {
   console.error("DEBUG: 'protect' is not a function! Current value:", protect);
