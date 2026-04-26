@@ -12,6 +12,7 @@ const enrollmentRoutes = require('./routes/enrollmentRoutes');
 const comments = require('./routes/comments');
 //const adminRoutes = require('./routes/adminRoutes');
 const unitRoutes = require('./routes/unitRoutes');
+const schoolRoutes = require('./routes/schoolRoutes');
 
 // Import the Webhook Controller specifically
 const enrollmentWebhook = require('./controllers/enrollmentWebhook');
@@ -60,6 +61,7 @@ app.use('/api/v1/comments', comments);
 app.use('/api/v1/stats', statsRoutes);
 //app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/admin', unitRoutes);
+app.use('/api/schools', schoolRoutes);
 
 
 
