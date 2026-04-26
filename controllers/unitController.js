@@ -2,7 +2,7 @@
 const User = require('../models/User'); 
 const Contact = require('../models/Contact');
 const Newsletter = require('../models/Newsletter');
-const Comment = require('../models/Comment');
+const Comment = require('../models/comment');
 
 // Missing models commented out until they are created
 // const School = require('../models/School');
