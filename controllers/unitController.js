@@ -1,3 +1,113 @@
+
+const User = require('../models/User'); 
+const Contact = require('../models/Contact');
+const Newsletter = require('../models/Newsletter');
+const Comment = require('../models/Comment');
+
+// Missing models commented out until they are created
+// const School = require('../models/School');
+// const Service = require('../models/Service');
+// const Internship = require('../models/Internship');
+// const Partnership = require('../models/Partnership');
+
+const getOversightStats = async (req, res) => {
+    try {
+        const sevenDaysAgo = new Date();
+        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+        // Execute queries only for models that exist
+        const [
+            totalUsers,
+            totalWorkers,
+            totalInstructors,
+            totalContacts,
+            totalNewsletter,
+            totalComments,
+            pendingEnrollments,
+            recentUsers 
+        ] = await Promise.all([
+            User.countDocuments({ role: 'user' }),
+            User.countDocuments({ role: 'worker' }),
+            User.countDocuments({ role: 'instructor' }),
+            Contact.countDocuments(),
+            Newsletter.countDocuments(),
+            Comment.countDocuments(),
+            User.countDocuments({ enrollmentStatus: 'pending' }),
+            User.find({ createdAt: { $gte: sevenDaysAgo } }).select('createdAt')
+        ]);
+
+        // Placeholders for missing models to prevent frontend breaking
+        const totalSchools = 0;
+        const totalServices = 0;
+        const totalInternships = 0;
+        const totalPartnerships = 0;
+
+        // Process Growth Chart
+        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+        const growthMap = {};
+        for (let i = 6; i >= 0; i--) {
+            const d = new Date();
+            d.setDate(d.getDate() - i);
+            growthMap[days[d.getDay()]] = 0;
+        }
+
+        recentUsers.forEach(user => {
+            const dayName = days[new Date(user.createdAt).getDay()];
+            if (growthMap[dayName] !== undefined) growthMap[dayName]++;
+        });
+
+        const growthChart = Object.keys(growthMap).map(label => ({
+            label,
+            value: growthMap[label]
+        }));
+
+        const stats = {
+            mainStats: {
+                workers: totalWorkers,
+                users: totalUsers,
+                instructors: totalInstructors,
+                visitorRate: totalUsers > 0 ? ((recentUsers.length / totalUsers) * 100).toFixed(1) : 0,
+            },
+            operational: {
+                schools: totalSchools,
+                services: totalServices,
+                newsletter: totalNewsletter,
+                contacts: totalContacts,
+                internships: totalInternships,
+                partnerships: totalPartnerships,
+                collabs: 0, 
+                exams: 0,   
+                comments: totalComments
+            },
+            oversight: {
+                pendingEnrollments: pendingEnrollments,
+                avgEngagement: [
+                    { _id: 'worker', avgSessionDuration: 0 },
+                    { _id: 'instructor', avgSessionDuration: 0 }
+                ]
+            },
+            growthChart: growthChart
+        };
+
+        res.status(200).json({ success: true, data: stats });
+
+    } catch (error) {
+        res.status(500).json({
+            success: false,
+            message: "System Oversight Sync Error",
+            error: error.message
+        });
+    }
+};
+
+module.exports = { getOversightStats };
+
+
+
+
+
+
+/*
 const User = require('../models/User'); 
 const School = require('../models/School');
 const Service = require('../models/Service');
@@ -108,3 +218,4 @@ const getOversightStats = async (req, res) => {
 };
 
 module.exports = { getOversightStats };
+*/
