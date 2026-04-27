@@ -1,9 +1,9 @@
 const mongoose = require('mongoose');
 
-const ServiceSchema = new mongoose.Schema({
+const SchoolSchema = new mongoose.Schema({
     title: { 
         type: String, 
-        required: [true, 'Please add a service title'],
+        required: [true, 'Please add a school title'],
         unique: true,
         trim: true
     },
@@ -13,12 +13,18 @@ const ServiceSchema = new mongoose.Schema({
     },
     iconName: { 
         type: String, 
-        required: [true, 'Please specify a Lucide icon name'] 
+        required: [true, 'Please specify a Lucide icon name'],
+        default: 'GraduationCap'
     },
-    actionLink: { 
-        type: String, 
-        default: '/regular/service/request' 
+    slug: {
+        type: String,
+        unique: true
+    },
+    isActive: {
+        type: Boolean,
+        default: true
     }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Service', ServiceSchema);
+
+module.exports = mongoose.models.School || mongoose.model('School', SchoolSchema);
