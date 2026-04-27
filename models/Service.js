@@ -13,8 +13,7 @@ const serviceSchema = new mongoose.Schema({
   iconName: {
     type: String,
     required: [true, 'Please provide a Lucide icon name'],
-    default: 'Code2',
-    
+    default: 'Code2'
   },
   order: {
     type: Number,
@@ -26,4 +25,5 @@ const serviceSchema = new mongoose.Schema({
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model('Service', serviceSchema);
+
+module.exports = mongoose.models.Service || mongoose.model('Service', serviceSchema);
