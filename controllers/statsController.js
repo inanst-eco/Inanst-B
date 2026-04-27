@@ -1,3 +1,5 @@
+//Inanst-B/controllers/statsController.js
+
 const { Enrollment } = require('../models/enrollmentModel');
 const User = require('../models/User'); 
 const Newsletter = require('../models/Newsletter'); 

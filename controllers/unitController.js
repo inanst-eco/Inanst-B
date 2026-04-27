@@ -1,21 +1,16 @@
-
 const User = require('../models/User'); 
 const Contact = require('../models/Contact');
 const Newsletter = require('../models/Newsletter');
 const Comment = require('../models/comment');
-
-// Missing models commented out until they are created
-// const School = require('../models/School');
-// const Service = require('../models/Service');
-// const Internship = require('../models/Internship');
-// const Partnership = require('../models/Partnership');
+const Service = require('../models/Service');
+const Internship = require('../models/Internship');
+const { Enrollment } = require('../models/enrollmentModel'); 
 
 const getOversightStats = async (req, res) => {
     try {
         const sevenDaysAgo = new Date();
         sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
 
-        // Execute queries only for models that exist
         const [
             totalUsers,
             totalWorkers,
@@ -23,8 +18,10 @@ const getOversightStats = async (req, res) => {
             totalContacts,
             totalNewsletter,
             totalComments,
+            totalServices,
+            totalInternships,
             pendingEnrollments,
-            recentUsers 
+            growthData 
         ] = await Promise.all([
             User.countDocuments({ role: 'user' }),
             User.countDocuments({ role: 'worker' }),
@@ -32,66 +29,74 @@ const getOversightStats = async (req, res) => {
             Contact.countDocuments(),
             Newsletter.countDocuments(),
             Comment.countDocuments(),
-            User.countDocuments({ enrollmentStatus: 'pending' }),
-            User.find({ createdAt: { $gte: sevenDaysAgo } }).select('createdAt')
+            Service.countDocuments(),
+            Internship.countDocuments(),
+            Enrollment.countDocuments({ paymentStatus: 'pending' }),
+            
+            
+            User.aggregate([
+                { $match: { createdAt: { $gte: sevenDaysAgo } } },
+                {
+                    $group: {
+                        _id: { $dateToString: { format: "%Y-%m-%d", date: "$createdAt" } },
+                        count: { $sum: 1 }
+                    }
+                },
+                { $sort: { "_id": 1 } }
+            ])
         ]);
 
-        // Placeholders for missing models to prevent frontend breaking
-        const totalSchools = 0;
-        const totalServices = 0;
-        const totalInternships = 0;
-        const totalPartnerships = 0;
-
-        // Process Growth Chart
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const growthMap = {};
+        
+        const last7Days = [];
         for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            growthMap[days[d.getDay()]] = 0;
+            const date = new Date();
+            date.setDate(date.getDate() - i);
+            const dateStr = date.toISOString().split('T')[0];
+            
+            const dayData = growthData.find(item => item._id === dateStr);
+            
+            last7Days.push({
+                label: date.toLocaleDateString('en-US', { weekday: 'short' }), 
+                value: dayData ? dayData.count : 0
+            });
         }
 
-        recentUsers.forEach(user => {
-            const dayName = days[new Date(user.createdAt).getDay()];
-            if (growthMap[dayName] !== undefined) growthMap[dayName]++;
-        });
-
-        const growthChart = Object.keys(growthMap).map(label => ({
-            label,
-            value: growthMap[label]
-        }));
+        
+        const recentSignupsCount = growthData.reduce((acc, curr) => acc + curr.count, 0);
+        const visitorRate = totalUsers > 0 ? ((recentSignupsCount / totalUsers) * 100).toFixed(1) : 0;
 
         const stats = {
             mainStats: {
-                workers: totalWorkers,
-                users: totalUsers,
-                instructors: totalInstructors,
-                visitorRate: totalUsers > 0 ? ((recentUsers.length / totalUsers) * 100).toFixed(1) : 0,
+                workers: totalWorkers || 0,
+                users: totalUsers || 0,
+                instructors: totalInstructors || 0,
+                visitorRate: visitorRate,
             },
             operational: {
-                schools: totalSchools,
-                services: totalServices,
-                newsletter: totalNewsletter,
-                contacts: totalContacts,
-                internships: totalInternships,
-                partnerships: totalPartnerships,
+                schools: 0, 
+                services: totalServices || 0,
+                newsletter: totalNewsletter || 0,
+                contacts: totalContacts || 0,
+                internships: totalInternships || 0,
+                partnerships: 0, 
                 collabs: 0, 
                 exams: 0,   
-                comments: totalComments
+                comments: totalComments || 0
             },
             oversight: {
-                pendingEnrollments: pendingEnrollments,
+                pendingEnrollments: pendingEnrollments || 0,
                 avgEngagement: [
                     { _id: 'worker', avgSessionDuration: 0 },
                     { _id: 'instructor', avgSessionDuration: 0 }
                 ]
             },
-            growthChart: growthChart
+            growthChart: last7Days 
         };
 
         res.status(200).json({ success: true, data: stats });
 
     } catch (error) {
+        console.error("Admin Dashboard Error:", error);
         res.status(500).json({
             success: false,
             message: "System Oversight Sync Error",
@@ -101,121 +106,3 @@ const getOversightStats = async (req, res) => {
 };
 
 module.exports = { getOversightStats };
-
-
-
-
-
-
-/*
-const User = require('../models/User'); 
-const School = require('../models/School');
-const Service = require('../models/Service');
-const Internship = require('../models/Internship');
-const Partnership = require('../models/Partnership');
-const Contact = require('../models/Contact');
-const Newsletter = require('../models/Newsletter');
-const Comment = require('../models/Comment');
-
-const getOversightStats = async (req, res) => {
-    try {
-        //  Get the date for 7 days ago to calculate growth
-        const sevenDaysAgo = new Date();
-        sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-        //  Execute all queries
-        const [
-            totalUsers,
-            totalWorkers,
-            totalInstructors,
-            totalSchools,
-            totalServices,
-            totalInternships,
-            totalPartnerships,
-            totalContacts,
-            totalNewsletter,
-            totalComments,
-            pendingEnrollments,
-            recentUsers 
-        ] = await Promise.all([
-            User.countDocuments({ role: 'user' }),
-            User.countDocuments({ role: 'worker' }),
-            User.countDocuments({ role: 'instructor' }),
-            School.countDocuments(),
-            Service.countDocuments(),
-            Internship.countDocuments(),
-            Partnership.countDocuments(),
-            Contact.countDocuments(),
-            Newsletter.countDocuments(),
-            Comment.countDocuments(),
-            User.countDocuments({ enrollmentStatus: 'pending' }),
-            User.find({ createdAt: { $gte: sevenDaysAgo } }).select('createdAt')
-        ]);
-
-        //  Process Growth Chart Data (Grouping by Day)
-        const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-        const growthMap = {};
-        
-        // Initialize last 7 days with 0
-        for (let i = 6; i >= 0; i--) {
-            const d = new Date();
-            d.setDate(d.getDate() - i);
-            growthMap[days[d.getDay()]] = 0;
-        }
-
-        // Fill with real user signup counts
-        recentUsers.forEach(user => {
-            const dayName = days[new Date(user.createdAt).getDay()];
-            if (growthMap[dayName] !== undefined) growthMap[dayName]++;
-        });
-
-        const growthChart = Object.keys(growthMap).map(label => ({
-            label,
-            value: growthMap[label]
-        }));
-
-        //  Final Response Structure
-        const stats = {
-            mainStats: {
-                workers: totalWorkers,
-                users: totalUsers,
-                instructors: totalInstructors,
-                visitorRate: totalUsers > 0 ? ((recentUsers.length / totalUsers) * 100).toFixed(1) : 0,
-            },
-            operational: {
-                schools: totalSchools,
-                services: totalServices,
-                newsletter: totalNewsletter,
-                contacts: totalContacts,
-                internships: totalInternships,
-                partnerships: totalPartnerships,
-                collabs: totalPartnerships, 
-                exams: totalSchools,        
-                comments: totalComments
-            },
-            oversight: {
-                pendingEnrollments: pendingEnrollments,
-                avgEngagement: [
-                    { _id: 'worker', avgSessionDuration: 0 }, 
-                    { _id: 'instructor', avgSessionDuration: 0 }
-                ]
-            },
-            growthChart: growthChart
-        };
-
-        res.status(200).json({
-            success: true,
-            data: stats
-        });
-
-    } catch (error) {
-        res.status(500).json({
-            success: false,
-            message: "Database Sync Failed",
-            error: error.message
-        });
-    }
-};
-
-module.exports = { getOversightStats };
-*/
