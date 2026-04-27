@@ -13,6 +13,10 @@ const comments = require('./routes/comments');
 //const adminRoutes = require('./routes/adminRoutes');
 const unitRoutes = require('./routes/unitRoutes');
 const schoolRoutes = require('./routes/schoolRoutes');
+const internshipRoutes = require('./routes/internshipRoutes');
+const serviceRoutes = require('./routes/serviceRoutes');
+
+
 
 // Import the Webhook Controller specifically
 const enrollmentWebhook = require('./controllers/enrollmentWebhook');
@@ -62,6 +66,8 @@ app.use('/api/v1/stats', statsRoutes);
 //app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/admin', unitRoutes);
 app.use('/api/schools', schoolRoutes);
+app.use('/api/internships', internshipRoutes);
+app.use('/api/services', serviceRoutes);
 
 
 
