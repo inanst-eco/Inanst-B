@@ -15,8 +15,7 @@ const unitRoutes = require('./routes/unitRoutes');
 const schoolRoutes = require('./routes/schoolRoutes');
 const internshipRoutes = require('./routes/internshipRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
-const instructorRoutes = require('./src/routes/instructorRoutes');
-
+const instructorRoutes = require('./routes/instructorRoutes');
 
 
 // Import the Webhook Controller specifically
