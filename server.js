@@ -15,6 +15,7 @@ const unitRoutes = require('./routes/unitRoutes');
 const schoolRoutes = require('./routes/schoolRoutes');
 const internshipRoutes = require('./routes/internshipRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
+const instructorRoutes = require('./src/routes/instructorRoutes');
 
 
 
@@ -68,6 +69,7 @@ app.use('/api/v1/admin', unitRoutes);
 app.use('/api/schools', schoolRoutes);
 app.use('/api/internships', internshipRoutes);
 app.use('/api/services', serviceRoutes);
+app.use('/api/v1/instructor', instructorRoutes);
 
 
 
