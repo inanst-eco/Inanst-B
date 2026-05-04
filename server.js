@@ -16,15 +16,16 @@ const schoolRoutes = require('./routes/schoolRoutes');
 const internshipRoutes = require('./routes/internshipRoutes');
 const serviceRoutes = require('./routes/serviceRoutes');
 const instructorRoutes = require('./routes/instructorRoutes');
+const taskRoutes = require('./routes/taskRoutes');
 
 
-// Import the Webhook Controller specifically
+// Import the Webhook Controller 
 const enrollmentWebhook = require('./controllers/enrollmentWebhook');
 const statsRoutes = require('./routes/statsRoutes');
 
 const app = express();
 
-// Essential for deployments like Render/Heroku
+
 app.set('trust proxy', 1);
 
 
@@ -69,6 +70,7 @@ app.use('/api/schools', schoolRoutes);
 app.use('/api/internships', internshipRoutes);
 app.use('/api/services', serviceRoutes);
 app.use('/api/v1/instructor', instructorRoutes);
+app.use('/api/v1/tasks', taskRoutes);
 
 
 
